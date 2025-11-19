@@ -1,0 +1,63 @@
+# config/sources.yml
+defaults:
+  db_url: postgresql+psycopg://user:pass@localhost:5432/ingest_db
+  batch_size: 5000
+  on_conflict: upsert           # options: append | upsert | fail
+
+sources:
+  - name: customers_csv
+    type: csv
+    path: data/customers.csv
+    target_table: stg_customers
+    pk: [customer_id]
+    schema:
+      customer_id: int
+      first_name: str
+      last_name: str
+      email: str
+      created_at: date
+    rules:
+      - email: "CHECK (email LIKE '%@%')"
+      - created_at: "NOT NULL created_at"
+      - first_name: 'CHECK (LENGTH(first_name)>0)'
+
+  - name: sales_json
+    type: json
+    path: data/sales.json
+    target_table: stg_sales
+    pk: [sale_id]
+    schema:
+      sale_id: int
+      customer_id: int
+      amount: float
+      currency: str
+      ts: datetime
+    rules:
+      - rule: "amount >= 0"
+      - rule: "currency IN ('USD','EUR','CAD')"
+  - name: drugs_product_csv
+    type: csv
+    path: data/Drugs_product.csv
+    target_table: drug_data
+    pk: [PRODUCTID]
+    schema:
+      PRODUCTID: str
+      PRODUCTNDC : str
+      PRODUCTTYPENAME: str
+      PROPRIETARYNAME: str
+      PROPRIETARYNAMESUFFIX : str
+      NONPROPRIETARYNAME : str
+      DOSAGEFORMNAME: str
+      ROUTENAME : str[]
+      STARTMARKETINGDATE : date
+      ENDMARKETINGDATE : date
+      MARKETINGCATEGORYNAME: str
+      APPLICATIONNUMBER : str
+      LABELERNAME : str
+      SUBSTANCENAME : str[]
+      ACTIVE_NUMERATOR_STRENGTH : float[]
+      ACTIVE_INGRED_UNIT : str[]
+      PHARM_CLASSES : str[]
+      DEASCHEDULE : str
+    rules:
+
