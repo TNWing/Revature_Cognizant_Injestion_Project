@@ -5,7 +5,7 @@ defaults:
   on_conflict: upsert           # options: append | upsert | fail
 
 sources:
-  - name: customers_csv
+  - name: customer
     type: csv
     path: data/customers.csv
     target_table: stg_customers
@@ -20,22 +20,9 @@ sources:
       - email: "CHECK (email LIKE '%@%')"
       - created_at: "NOT NULL created_at"
       - first_name: 'CHECK (LENGTH(first_name)>0)'
-
-  - name: sales_json
-    type: json
-    path: data/sales.json
-    target_table: stg_sales
-    pk: [sale_id]
-    schema:
-      sale_id: int
-      customer_id: int
-      amount: float
-      currency: str
-      ts: datetime
-    rules:
-      - rule: "amount >= 0"
-      - rule: "currency IN ('USD','EUR','CAD')"
-  - name: drugs_product_csv
+    clean: #determine what col data to standardize, and what standardize method
+      - age: {test,etst}
+  - name: drug_product
     type: csv
     path: data/Drugs_product.csv
     target_table: drug_data

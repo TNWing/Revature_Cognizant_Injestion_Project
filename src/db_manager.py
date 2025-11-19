@@ -1,6 +1,15 @@
+import enum
+
 import psycopg2
 import datetime
 import psycopg2.sql as sql
+from enum import Enum
+
+
+class Conflict(Enum):
+    APPEND = enum.auto()
+    UPSERT = enum.auto()
+    FAIL = enum.auto()
 
 
 class DrugProduct:
@@ -23,10 +32,7 @@ class DrugProduct:
 
 
 dynamic_classes_from_config = {}
-'''
-as a note, for arrays, the file uses a ; as a delimiter
-i would need to process that before i insert data 
-'''
+
 datatype_converter = {
     'str': 'VARCHAR',
     'str[]': 'VARCHAR[]',
@@ -54,15 +60,16 @@ def close(conn):
 def build_dynamic_class(name, attribute_names):
     attr = {}
     for n in attribute_names:
+        print("Key name")
+        print(n)
         attr[n] = None
 
     return type(name, (), attr)
 
 
-def build_classes(class_list):
-    for n in class_list:
-        print(n)
-        dynamic_classes_from_config[""] = build_dynamic_class("", {})
+def build_classes(class_names,class_schemas:dict):
+    for name,schema in class_names,class_schemas:
+        dynamic_classes_from_config[name] = build_dynamic_class(name, schema.keys())
 
 
 def pk_constraint(pk):
