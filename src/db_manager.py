@@ -42,10 +42,21 @@ datatype_converter = {
     'date': 'DATE',
     'bool': 'BOOL',
     'float': 'FLOAT',
-    'float[]': 'FLOAT[]'
+    'float[]': 'FLOAT[]',
+    'serial':'SERIAL'
 }
+class Reject:
+    def __init__(self, table_name,data,time,reason):
+        self.table=table_name
+        self.data=data
+        self.time=time
+        self.reason=reason
 
-rejected_data = {}
+rejected_data = []
+#make this a list instead
+'''
+such that each entry in list is a reject_data class
+'''
 
 
 def commit(conn):
@@ -92,6 +103,7 @@ def create_table(conn,cur, table_name, fields, data_types, constraints):
             )
             for c_name, c_type in zip(fields, data_types)]
     print(attributes)
+    print(constraints)
     if (constraints is not None):
         attributes.extend(sql.SQL(c) for c in constraints)
     print(attributes)
@@ -102,8 +114,11 @@ def create_table(conn,cur, table_name, fields, data_types, constraints):
         )
     )
     #print(query.as_string(cur))
-    cur.execute(query)
-    return
+    try:
+        cur.execute(query)
+    except Exception as e:
+        print(e)
+        pass
 
 
 def preprocess_data(data, types):
@@ -119,7 +134,6 @@ def preprocess_data(data, types):
                 else:
                     d = datetime.datetime.strptime(d, "%Y%m%d")
             except Exception:
-                # print("invalid datetime value")
                 d = None
         if str_t.__contains__("[]"):
             delim_ver = [d]
@@ -145,7 +159,6 @@ def upsert_into_table(cur, table_name, data, schema, primary_key):
         ),
         vals=sql.SQL(',').join(
             sql.Placeholder() * len(data)
-            # sql.Placeholder
         ),
         pk=sql.SQL(',').join(
             sql.SQL(n) for n in primary_key
@@ -160,10 +173,9 @@ def upsert_into_table(cur, table_name, data, schema, primary_key):
     )
     try:
         cur.execute(query, data)
-        pass
     except psycopg2.Error as e:
         print("Programming error")
-        rejected_data[data] = e
+        rejected_data.append(Reject(table_name,data,datetime.datetime.now(),e))
 
         print(e)
     return
@@ -184,19 +196,13 @@ def drop_table(cur, table_name):
 # create_table(cur, table_name, fields, data_types, constraints):
 
 def create_reject_table(conn,cur):
-    create_table(conn,cur, 'rejected_data', ['data', 'time', 'reason'], ['str', 'datetime', 'str'], None)
+    #have a pk that is auto assigned
+    create_table(conn,cur, 'rejected_data', ['col_id','table_name','data', 'time', 'reason'], ['serial','str','str', 'datetime', 'str'],[pk_constraint(['col_id']) ])
     print('reject table')
 
 def put_in_reject_table(cur):
 
-    for key, val in rejected_data.items():
-        data=[key,datetime.datetime.now(),val]
-        upsert_into_table(cur,'rejected_data',data,['data', 'time', 'reason'],None)
-        query = sql.SQL('INSERT INTO TABLE rejected_data (data, time, reason) VALUES ({d},{t},{r})').format(
-            d=sql.SQL(key),
-            t=sql.SQL(datetime.datetime.now()),
-            r=sql.SQL(val)
-        )
-        print(query.as_string(cur))
-        cur.execute(query)
+    for data in rejected_data:
+        data_list=[data.table, data.data, data.time,data.reason]
+        upsert_into_table(cur,'rejected_data',data_list,['table_name','data', 'time', 'reason'],['col_id'])
     return
