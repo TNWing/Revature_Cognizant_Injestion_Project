@@ -26,6 +26,8 @@ def read_from_source(conn, cur):
     for d_class, class_data in db_manager.dynamic_classes_from_config.items():
         print(d_class)
         print(dir(class_data))
+        print(vars(class_data))
+        print(class_data.__dict__)
     return
 
 
@@ -40,7 +42,7 @@ if __name__ == '__main__':
         port=os.getenv('DB_PORT')
     )
     cur = conn.cursor()
-    db_manager.create_reject_table(conn,cur)
+    db_manager.create_reject_table(cur)
     read_from_source(conn, cur)
     db_manager.put_in_reject_table(cur)
     conn.commit()

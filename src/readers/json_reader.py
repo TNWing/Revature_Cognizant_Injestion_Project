@@ -9,12 +9,11 @@ def read_json(conn, cur, source):
     rules = source['rules']
     table_name = source['target_table']
     rule_list = [db_manager.pk_constraint(source['pk'])]
-    print('f path' + file_path)
     if rules is not None:
         for r in rules:
             rule_list.append(list(r.values())[0])
             pass
-    db_manager.create_table(conn,cur, table_name, list(schema.keys()), list(schema.values()), rule_list)
+    db_manager.create_table(cur, table_name, list(schema.keys()), list(schema.values()), rule_list)
     db_manager.commit(conn)
     if Path(file_path).exists():
         # TODO see if this read works

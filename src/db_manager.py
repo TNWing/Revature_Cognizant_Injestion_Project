@@ -43,17 +43,20 @@ datatype_converter = {
     'bool': 'BOOL',
     'float': 'FLOAT',
     'float[]': 'FLOAT[]',
-    'serial':'SERIAL'
+    'serial': 'SERIAL'
 }
+
+
 class Reject:
-    def __init__(self, table_name,data,time,reason):
-        self.table=table_name
-        self.data=data
-        self.time=time
-        self.reason=reason
+    def __init__(self, table_name, data, time, reason):
+        self.table = table_name
+        self.data = data
+        self.time = time
+        self.reason = reason
+
 
 rejected_data = []
-#make this a list instead
+# make this a list instead
 '''
 such that each entry in list is a reject_data class
 '''
@@ -76,14 +79,13 @@ def build_dynamic_class(name, attribute_names):
     return type(name, (), attr)
 
 
-def build_classes(class_name,class_schemas:dict):
+def build_classes(class_name, class_schemas: dict):
     print("\n\n\nClass")
     print(class_name)
     print("\n\n\n")
     dynamic_classes_from_config[class_name] = build_dynamic_class(class_name, class_schemas.keys())
     print(vars(dynamic_classes_from_config[class_name]))
     print(dynamic_classes_from_config[class_name].__dict__)
-
 
 
 def pk_constraint(pk):
@@ -96,28 +98,23 @@ def pk_constraint(pk):
     return rule
 
 
-def create_table(conn,cur, table_name, fields, data_types, constraints):
-    attributes= [sql.SQL("{} {}").format(
-                sql.SQL(c_name),
-                sql.SQL(datatype_converter[c_type])
-            )
-            for c_name, c_type in zip(fields, data_types)]
-    print(attributes)
-    print(constraints)
+def create_table(cur, table_name, fields, data_types, constraints):
+    attributes = [sql.SQL("{} {}").format(
+        sql.SQL(c_name),
+        sql.SQL(datatype_converter[c_type])
+    )
+        for c_name, c_type in zip(fields, data_types)]
     if (constraints is not None):
         attributes.extend(sql.SQL(c) for c in constraints)
-    print(attributes)
     query = sql.SQL('CREATE TABLE IF NOT EXISTS {name} ({attr})').format(
         name=sql.Identifier(table_name),
         attr=sql.SQL(',').join(
             attributes
         )
     )
-    #print(query.as_string(cur))
     try:
         cur.execute(query)
     except Exception as e:
-        print(e)
         pass
 
 
@@ -174,10 +171,7 @@ def upsert_into_table(cur, table_name, data, schema, primary_key):
     try:
         cur.execute(query, data)
     except psycopg2.Error as e:
-        print("Programming error")
-        rejected_data.append(Reject(table_name,data,datetime.datetime.now(),e))
-
-        print(e)
+        rejected_data.append(Reject(table_name, data, datetime.datetime.now(), e))
     return
 
 
@@ -193,16 +187,18 @@ def drop_table(cur, table_name):
     )
     cur.execute(query)
     return
+
+
 # create_table(cur, table_name, fields, data_types, constraints):
 
-def create_reject_table(conn,cur):
-    #have a pk that is auto assigned
-    create_table(conn,cur, 'rejected_data', ['col_id','table_name','data', 'time', 'reason'], ['serial','str','str', 'datetime', 'str'],[pk_constraint(['col_id']) ])
-    print('reject table')
+def create_reject_table( cur):
+    # have a pk that is auto assigned
+    create_table(cur, 'rejected_data', ['col_id', 'table_name', 'data', 'time', 'reason'],
+                 ['serial', 'str', 'str', 'datetime', 'str'], [pk_constraint(['col_id'])])
+
 
 def put_in_reject_table(cur):
-
     for data in rejected_data:
-        data_list=[data.table, data.data, data.time,data.reason]
-        upsert_into_table(cur,'rejected_data',data_list,['table_name','data', 'time', 'reason'],['col_id'])
+        data_list = [data.table, data.data, data.time, data.reason]
+        upsert_into_table(cur, 'rejected_data', data_list, ['table_name', 'data', 'time', 'reason'], ['col_id'])
     return

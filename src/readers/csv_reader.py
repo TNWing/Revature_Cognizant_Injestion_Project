@@ -12,13 +12,11 @@ def read_csv(conn, cur, source):
         for r in rules:
             rule_list.append(list(r.values())[0])
             pass
-    db_manager.create_table(conn,cur, table_name, list(schema.keys()), list(schema.values()), rule_list)
+    db_manager.create_table(cur, table_name, list(schema.keys()), list(schema.values()), rule_list)
     db_manager.commit(conn)
     if Path(file_path).exists():
         df = pd.read_csv(file_path, na_values=[""], dtype={"STARTMARKETINGDATE": "Int64", "ENDMARKETINGDATE": "Int64"})
         # TODO: move the code below to a separate func to share btwn readers
-        print("try build")
-        print(source['name'])
         db_manager.build_classes(source['name'],schema)
         for val in df.values:
             new_data = db_manager.preprocess_data(val, list(schema.values()))
