@@ -60,16 +60,19 @@ def close(conn):
 def build_dynamic_class(name, attribute_names):
     attr = {}
     for n in attribute_names:
-        print("Key name")
-        print(n)
         attr[n] = None
 
     return type(name, (), attr)
 
 
-def build_classes(class_names,class_schemas:dict):
-    for name,schema in class_names,class_schemas:
-        dynamic_classes_from_config[name] = build_dynamic_class(name, schema.keys())
+def build_classes(class_name,class_schemas:dict):
+    print("\n\n\nClass")
+    print(class_name)
+    print("\n\n\n")
+    dynamic_classes_from_config[class_name] = build_dynamic_class(class_name, class_schemas.keys())
+    print(vars(dynamic_classes_from_config[class_name]))
+    print(dynamic_classes_from_config[class_name].__dict__)
+
 
 
 def pk_constraint(pk):
@@ -82,27 +85,24 @@ def pk_constraint(pk):
     return rule
 
 
-def create_table(conn, cur, table_name, fields, data_types, constraints):
-    query = sql.SQL('CREATE TABLE IF NOT EXISTS {name} ({attr} ,{rules})').format(
-        name=sql.Identifier(table_name),
-        attr=sql.SQL(',').join(
-            sql.SQL("{} {}").format(
+def create_table(cur, table_name, fields, data_types, constraints):
+    attributes= [sql.SQL("{} {}").format(
                 sql.SQL(c_name),
                 sql.SQL(datatype_converter[c_type])
-
             )
-            for c_name, c_type in zip(fields, data_types)
-        ),
-        rules=sql.SQL(',').join(
-            sql.SQL("{}").format(
-                sql.SQL(r)
-            )
-            for r in constraints
+            for c_name, c_type in zip(fields, data_types)]
+    print(attributes)
+    if (constraints is not None):
+        attributes.extend(sql.SQL(c) for c in constraints)
+    print(attributes)
+    query = sql.SQL('CREATE TABLE IF NOT EXISTS {name} ({attr})').format(
+        name=sql.Identifier(table_name),
+        attr=sql.SQL(',').join(
+            attributes
         )
     )
-    print(query.as_string(conn))
+    print(query.as_string(cur))
     cur.execute(query)
-    conn.commit()
     return
 
 
@@ -180,11 +180,10 @@ def droptable(cur, table_name):
     )
     cur.execute(query)
     return
-
+# create_table(cur, table_name, fields, data_types, constraints):
 
 def create_reject_table(cur):
-    query = sql.SQL('CREATE TABLE rejected_data')
-    cur.execute(query)
+    create_table(cur, 'rejected_data', ['data', 'time', 'reason'], ['str', 'datetime', 'str'], None)
     return
 
 
