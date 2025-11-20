@@ -85,7 +85,7 @@ def pk_constraint(pk):
     return rule
 
 
-def create_table(cur, table_name, fields, data_types, constraints):
+def create_table(conn,cur, table_name, fields, data_types, constraints):
     attributes= [sql.SQL("{} {}").format(
                 sql.SQL(c_name),
                 sql.SQL(datatype_converter[c_type])
@@ -101,7 +101,7 @@ def create_table(cur, table_name, fields, data_types, constraints):
             attributes
         )
     )
-    print(query.as_string(cur))
+    #print(query.as_string(cur))
     cur.execute(query)
     return
 
@@ -118,7 +118,7 @@ def preprocess_data(data, types):
                     d = datetime.datetime.strptime(str_d, "%Y%m%d").date()
                 else:
                     d = datetime.datetime.strptime(d, "%Y%m%d")
-            except psycopg2.Error:
+            except Exception:
                 # print("invalid datetime value")
                 d = None
         if str_t.__contains__("[]"):
@@ -137,11 +137,11 @@ def preprocess_data(data, types):
     return new_data
 
 
-def upsert_into_table(cur, table_name, data, schema: dict, primary_key):
+def upsert_into_table(cur, table_name, data, schema, primary_key):
     query = sql.SQL('INSERT INTO {name} ({fields})VALUES ({vals}) ON CONFLICT ({pk}) DO UPDATE SET {setter}').format(
         name=sql.Identifier(table_name),
         fields=sql.SQL(',').join(
-            sql.SQL(n) for n in schema.keys()
+            sql.SQL(n) for n in schema
         ),
         vals=sql.SQL(',').join(
             sql.Placeholder() * len(data)
@@ -154,7 +154,7 @@ def upsert_into_table(cur, table_name, data, schema: dict, primary_key):
             sql.SQL('{} = EXCLUDED.{}').format(
                 sql.SQL(n),
                 sql.SQL(n)
-            ) for n in schema.keys()
+            ) for n in schema
         )
 
     )
@@ -164,17 +164,18 @@ def upsert_into_table(cur, table_name, data, schema: dict, primary_key):
     except psycopg2.Error as e:
         print("Programming error")
         rejected_data[data] = e
+
         print(e)
     return
 
 
-def getfromtable(table_name, str_query):
+def get_from_table(table_name, str_query):
     query = table_name + str_query
     print(query)
     return
 
 
-def droptable(cur, table_name):
+def drop_table(cur, table_name):
     query = sql.SQL('DROP TABLE {name}').format(
         name=sql.Identifier(table_name)
     )
@@ -182,13 +183,15 @@ def droptable(cur, table_name):
     return
 # create_table(cur, table_name, fields, data_types, constraints):
 
-def create_reject_table(cur):
-    create_table(cur, 'rejected_data', ['data', 'time', 'reason'], ['str', 'datetime', 'str'], None)
-    return
-
+def create_reject_table(conn,cur):
+    create_table(conn,cur, 'rejected_data', ['data', 'time', 'reason'], ['str', 'datetime', 'str'], None)
+    print('reject table')
 
 def put_in_reject_table(cur):
+
     for key, val in rejected_data.items():
+        data=[key,datetime.datetime.now(),val]
+        upsert_into_table(cur,'rejected_data',data,['data', 'time', 'reason'],None)
         query = sql.SQL('INSERT INTO TABLE rejected_data (data, time, reason) VALUES ({d},{t},{r})').format(
             d=sql.SQL(key),
             t=sql.SQL(datetime.datetime.now()),

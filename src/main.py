@@ -9,46 +9,28 @@ import os
 from src import db_manager
 from pathlib import Path
 from dotenv import load_dotenv
+globals.PARENT_DIR = Path(__file__).resolve().parent.parent
 
-# Press Shift+F10 to execute it or replace it with your code.
-# Press Double Shift to search everywhere for classes, files, tool windows, actions, and settings.
-"""
-the config file contains the sources of the data, the schema of the data, and the rules for the data
-this means that to establish the format of a table entry, need to load from the config to dict
-"""
-globals.PARENT_DIR=Path(__file__).resolve().parent.parent
 
 def read_from_source(conn, cur):
     for source in config.source_list:
 
         file_type = str.lower(source['type'])
 
-        if (file_type == 'csv') :#and source['path'] != 'data/customers.csv'
+        if file_type == 'csv':  # and source['path'] != 'data/customers.csv'
             read_csv(conn, cur, source)
         elif file_type == "json":
             read_json(conn, cur, source)
             pass
     print("CHECK CLASSES")
-    for d_class,class_data in db_manager.dynamic_classes_from_config.items():
+    for d_class, class_data in db_manager.dynamic_classes_from_config.items():
         print(d_class)
         print(dir(class_data))
     return
 
 
-# Press the green button in the gutter to run the script.
 if __name__ == '__main__':
-    print(globals.PARENT_DIR)
     config.read_config()
-    print(config.defaults)
-    '''
-    conn=psycopg2.connect(
-        dbname="",
-        user="",
-        password="",
-        host=config.defaults['db_url']
-    )
-    '''
-
     load_dotenv()
     conn = psycopg2.connect(
         dbname=os.getenv('DB_NAME'),
@@ -58,10 +40,8 @@ if __name__ == '__main__':
         port=os.getenv('DB_PORT')
     )
     cur = conn.cursor()
-    db_manager.create_reject_table(cur)
+    db_manager.create_reject_table(conn,cur)
     read_from_source(conn, cur)
-
-    # db_manager.insertIntoTable(conn,cur,"test",{'apple':'red','grape':'purple'},None)
+    db_manager.put_in_reject_table(cur)
+    conn.commit()
     conn.close()
-
-# See PyCharm help at https://www.jetbrains.com/help/pycharm/
