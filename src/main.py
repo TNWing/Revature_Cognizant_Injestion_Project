@@ -1,27 +1,27 @@
 # This is a sample Python script.
-from src import globals
+from src import global_vars
 from src import config
 import pytest
 from readers.csv_reader import read_csv
 from readers.json_reader import read_json
-from readers.csv_readerv2 import readv2
+from readers.csv_readerv2 import read_csv
 import psycopg2
 import os
 from src import db_manager
 from pathlib import Path
 from dotenv import load_dotenv
+
 globals.PARENT_DIR = Path(__file__).resolve().parent.parent
 
 
 def read_from_source(conn, cur):
-
     for source in config.source_list:
 
         file_type = str.lower(source['type'])
 
         if file_type == 'csv':  # and source['path'] != 'data/customers.csv'
-            #read_csv(conn, cur, source)
-            readv2(conn,cur,source)
+            # read_csv(conn, cur, source)
+            read_csv(conn, cur, source)
         elif file_type == "json":
             read_json(conn, cur, source)
             pass

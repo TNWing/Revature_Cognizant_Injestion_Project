@@ -1,10 +1,10 @@
 import pandas as pd
 from pathlib import Path
 from src import db_manager
-from src import globals as globals
+from src import global_vars as globalvars
 
 def read_json(conn, cur, source):
-    file_path = globals.PARENT_DIR.__str__() + "\\" +source['path']
+    file_path = globalvars.PARENT_DIR.__str__() + "\\" +source['path']
     schema = source['schema']
     rules = source['rules']
     table_name = source['target_table']

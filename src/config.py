@@ -1,5 +1,5 @@
 import yaml
-from src import globals
+from src import global_vars as globalvars
 defaults = None
 source_list = []
 pythonObjs = []
@@ -7,7 +7,7 @@ pythonObjs = []
 
 def read_config():
     global defaults
-    with open(globals.PARENT_DIR.__str__() + "\\config\\sourcesv2.yml", "r") as config:
+    with open(globalvars.PARENT_DIR.__str__() + "\\config\\sourcesv2.yml", "r") as config:
         data = yaml.safe_load(config)
         defaults = data['defaults']
         sources = data['sources']

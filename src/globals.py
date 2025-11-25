@@ -1,2 +1,0 @@
-
-PARENT_DIR=None

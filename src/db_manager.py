@@ -6,20 +6,6 @@ import psycopg2.sql as sql
 from enum import Enum
 
 """
-if i wanted to associate a file with multiple schemas, and then parse the data to form multiple tables based on schemas
-ideas on how to do that
-*** In source, define schema as such
-schemas:
-    -schema:{
-        -pk:[]
-        -target_table:""
-        -attributes:{}
-        -rules:{}
-    }
-For each schema, form a table based on the data provided
-this requires changes to the readers rather than db_manager i think
-"""
-"""
 for drug data, this is the data in csv
       PRODUCTID: str
       PRODUCTNDC : str
@@ -76,7 +62,6 @@ class Conflict(Enum):
     APPEND = enum.auto()
     UPSERT = enum.auto()
     FAIL = enum.auto()
-
 
 class DrugProduct:
     def __init__(self, prod_id, ndc, prod_type, generic, brand, substances, dea):
