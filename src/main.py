@@ -13,6 +13,7 @@ globals.PARENT_DIR = Path(__file__).resolve().parent.parent
 
 
 def read_from_source(conn, cur):
+
     for source in config.source_list:
 
         file_type = str.lower(source['type'])
@@ -45,5 +46,6 @@ if __name__ == '__main__':
     db_manager.create_reject_table(cur)
     read_from_source(conn, cur)
     db_manager.put_in_reject_table(cur)
+    conn.rollback()
     conn.commit()
     conn.close()
