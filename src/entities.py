@@ -1,6 +1,7 @@
 """
 for each class
-
+i need to define a converter for each of them
+actually i may not need a class and can just use the converters
 """
 
 class DrugProduct:

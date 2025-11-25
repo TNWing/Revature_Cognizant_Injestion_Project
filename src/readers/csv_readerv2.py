@@ -2,7 +2,7 @@ import pandas as pd
 from pathlib import Path
 from src import db_manager
 from src import globals as globals
-
+from src import entity_converter
 
 def read_csv(conn, cur, source):
     file_path = globals.PARENT_DIR.__str__() + "\\" + source['path']
@@ -70,51 +70,6 @@ def read_csv(conn, cur, source):
                     print("BREAKER")
                     print(fields)
                     print(vals)
-
-                    '''
-                    and thats the issue, one vals entry has 2 elements, other one can have a diff amt like just 1
-                    i could find the entry with the most elements, then loop thr it making a unique inesrt for each
-                    but then that presents issues and lots of bloat
-                    '''
-                    '''
-                    the issue here is how do i actually separate the data into each table
-                    notably, if i want to separate str[] into separate rows, what do i do?
-                    bc when i read it, i get smth like this
-                    ['Antiarrhythmic [EPC],Cytochrome P450 2D6 Inhibitor [EPC],Cytochrome P450 2D6 Inhibitors [MoA]', '0002-1407_14757f9d-f641-4836-acf3-229265588d1d']
-                    ['PHARM_CLASS', 'PRODUCTID']
-                    
-                    but if i have dynamic tables from the config
-                    
-                    okay, if i have a data_types row for all the data types present in the csv
-                    i can then use that to determine how to proceed
-                    '''
-                cnt = 0
-                for val in df.values:
-                    # print("DATA")
-                    cnt = cnt + 1
-                    if (cnt > 2):
-                        break
-
-                    # print(val)
-                    # print(schema['attributes'])
-                    # print("Pre")
-                    # print(df.keys())
-                    # print("P2")
-                    # print(df.values)
-                    # print(type(df.values))
-                    #
-                    '''
-
-
-df = pd.DataFrame({'Name': ['Aman', 'Raj'], 'Age': [25, 32]})
-
-# Iterating through the DataFrame
-for index, row in df.iterrows():
-    print(f"Index: {index}, Name: {row['Name']}, Age: {row['Age']}")
-    '''
-                    # print(new_data)
-                    # print("POSt")
-                    # print(schema['attributes'])
                     try:
                         pass
                         # db_manager.upsert_into_table(cur, table_name, new_data, list(schema['attributes'].keys()), schema['pk'])
@@ -125,46 +80,26 @@ for index, row in df.iterrows():
 
 
 def readv2(conn, cur, source):
-    """
-          The main issue is this
-
-          Say i have 3 attributes: A,B,C
-          If A and C have multiple entries, how do i tell
-          If A and C are linked (ex: each C corresponds to a single A val)
-          or if they aren't (each C corresponds to each A)
-          I could do a link value in the config
-          -links
-              -A:C
-          and by default, assume not linked. if they are linked, use indexing to get corresponding value
-          Otherwise, do a loop thr all of c for each A
-
-          ****NEW METHOD****
-
-
-          First, start by getting each schema and storing it in an array or dict or something.
-          the config file should contain a new piece of data: linked data
-          Possibly include a bool saying whether or not a datatype from the csv/json has multiple entries
-
-          Then, iterate through each row.
-          For each row, iterate through the array of schemas and use the schema to process the data
-
-          if the bool from before is true, do this:
-              Figure out which values have multiple entries.
-def build_dynamic_class(name, attribute_names):
-    attr = {}
-    for n in attribute_names:
-        attr[n] = None
-
-    return type(name, (), attr)
-          """
 
     print("Test")
     file_path = globals.PARENT_DIR.__str__() + "\\" + source['path']
     schemas = source['schemas']
     schema_list=[]
-    print(schemas)
+
     if (type(schemas) != list):
         schemas = [schemas]
+    #print(schemas)
+    if Path(file_path).exists():
+        df = pd.read_csv(file_path, na_values=[""],
+                         dtype={"STARTMARKETINGDATE": "Int64", "ENDMARKETINGDATE": "Int64"})
+        cnt=0
+        for row_dict in df.to_dict(orient="records"):
+            cnt=cnt+1
+            if (cnt>4):
+                break
+            print("NEW ROW")
+            entity_converter.process_row(schemas,row_dict,df.keys(),None)
+    return
     for entry in schemas:
         for schema in entry.values():
             print(schema)
