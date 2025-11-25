@@ -72,7 +72,21 @@ def read_csv(conn, cur, source):
                     print(fields)
                     print(vals)
                     '''
+                    The main issue is this
+                    
+                    Say i have 3 attributes: A,B,C
+                    If A and C have multiple entries, how do i tell
+                    If A and C are linked (ex: each C corresponds to a single A val)
+                    or if they aren't (each C corresponds to each A)
+                    I could do a link value in the config
+                    -links
+                        -A:C
+                    and by default, assume not linked. if they are linked, use indexing to get corresponding value
+                    Otherwise, do a loop thr all of c for each A
+                    
                     ****NEW METHOD****
+                    
+                    
                     First, start by getting each schema and storing it in an array or dict or something.
                     the config file should contain a new piece of data: linked data 
                     Possibly include a bool saying whether or not a datatype from the csv/json has multiple entries

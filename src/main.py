@@ -4,6 +4,7 @@ from src import config
 import pytest
 from readers.csv_reader import read_csv
 from readers.json_reader import read_json
+from readers.csv_readerv2 import readv2
 import psycopg2
 import os
 from src import db_manager
@@ -19,7 +20,8 @@ def read_from_source(conn, cur):
         file_type = str.lower(source['type'])
 
         if file_type == 'csv':  # and source['path'] != 'data/customers.csv'
-            read_csv(conn, cur, source)
+            #read_csv(conn, cur, source)
+            readv2(conn,cur,source)
         elif file_type == "json":
             read_json(conn, cur, source)
             pass
