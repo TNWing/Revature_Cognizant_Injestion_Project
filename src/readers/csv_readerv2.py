@@ -89,6 +89,22 @@ def readv2(conn, cur, source):
     if (type(schemas) != list):
         schemas = [schemas]
     #print(schemas)
+    for s in schemas:
+        for schema in s.values():
+
+            rules = schema['rules']
+            table_name = schema['target_table']
+            print("\n\n\n\n")
+            print(table_name)
+
+            rule_list = [db_manager.pk_constraint(schema['pk'])]
+            if rules is not None:
+                for r in rules:
+                    rule_list.append(list(r.values())[0])
+                    pass
+            db_manager.create_table(cur, table_name, list(schema['attributes'].keys()),
+                                    list(schema['attributes'].values()), rule_list)
+            db_manager.commit(conn)
     if Path(file_path).exists():
         df = pd.read_csv(file_path, na_values=[""],
                          dtype={"STARTMARKETINGDATE": "Int64", "ENDMARKETINGDATE": "Int64"})
@@ -98,7 +114,7 @@ def readv2(conn, cur, source):
             if (cnt>4):
                 break
             print("NEW ROW")
-            entity_converter.process_row(schemas,row_dict,df.keys(),None)
+            entity_converter.process_row(cur,schemas,row_dict,df.keys(),None)
     return
     for entry in schemas:
         for schema in entry.values():
