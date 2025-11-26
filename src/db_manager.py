@@ -1,4 +1,5 @@
 import enum
+import math
 
 import psycopg2
 import datetime
@@ -121,23 +122,128 @@ def close(conn):
     conn.close()
 
 
+def process_row(conn, cur, schemas, data: dict, data_types, links):
+    for entry in schemas:
+        # print("NEW SET OF INSERTS")
+        for schema in entry.values():
+            # print(schema)
+            # print(data)
+            # print(data_types)
+            name = schema['name']
+            types = schema['attributes'].values()
+            new_data = {}
+            # need to format the multi element values into a list
+            if ('attr_name_map' in schema.keys()):
+                for attr in schema['attributes'].keys():
+                    if (attr in schema['attr_name_map']):
+                        new_data[attr] = (data.get(schema['attr_name_map'][attr]))
+                    else:
+                        new_data[attr] = data.get(attr)
+                    pass
+            else:
+                for attr in schema['attributes'].keys():
+                    new_data[attr] = data.get(attr)
+                    pass
+
+            func_name = str(name)
+            if (func_name in ['drug_class', 'drug_units','drug_substance','drug_administration']):
+
+                func_name = func_name.__add__('_helper')
+            else:
+                func_name = 'standard_helper'
+            # print(new_data)
+            if (func_name in globals()):
+                func = globals()[func_name]
+                func(conn, cur, schema['target_table'], new_data, schema['pk'], types)
+            # new_data is unprocessed however, so there might be lists as elements
+            """
+
+            """
+
+            # then just call the upsert
+
+        pass
+    pass
+
+
+def standard_helper(conn, cur, table_name, data: dict, pk, types):
+    upsert_into_table(conn, cur, table_name, list(data.values()), data.keys(), pk, types)
+    pass
+
+
+def drug_class_helper(conn, cur, table_name, data: dict, pk, types):
+    pharm_classes=[""]
+    if (type(data['PHARM_CLASS']) is float):
+        if not math.isnan(data['PHARM_CLASS']):
+            pharm_classes = data['PHARM_CLASS'].split(',')
+    for pc in pharm_classes:
+        query_data = list()
+        query_data.append(pc)
+        for n in data.keys():
+            if n != 'PHARM_CLASS':
+                query_data.append(data[n])
+
+        upsert_into_table(conn, cur, table_name, query_data, data.keys(), pk, types)
+
+    pass
+
+
+
+#figure out what to do since strength and unit can be blank
+def drug_units_helper(conn, cur, table_name, data: dict, pk, types):
+    strength = [None]
+    units = [""]
+    if (type(data['STRENGTH']) is float):
+        if not math.isnan(data['STRENGTH']):
+            strength = data['STRENGTH'].split(';')
+            units = data['UNIT'].split(';')
+    # print(strength)
+    # print(units)
+    for s, u in zip(strength, units):
+        query_data = list()
+
+        for n in data.keys():
+            if n not in ['STRENGTH', 'UNIT']:
+                query_data.append(data[n])
+            elif n == 'STRENGTH':
+                if (s is None):
+                    query_data.append(None)
+                else:
+                    query_data.append(s.strip())
+            else:
+                query_data.append(u.strip())
+        upsert_into_table(conn, cur, table_name, query_data, data.keys(), pk, types)
+
+    new_data = []
+    return new_data
+
+def drug_substance_helper(conn, cur, table_name, data: dict, pk, types):
+    substances=[""]
+    if (type(data['SUBSTANCENAME']) is float):
+        if not math.isnan(data['SUBSTANCENAME']):
+            substances=data['SUBSTANCENAME'].split(';')
+    for substance in substances:
+        query_data=list()
+        for n in data.keys():
+            if n not in ['SUBSTANCENAME']:
+                query_data.append(data[n])
+            else:
+                query_data.append(substance.strip())
+        upsert_into_table(conn, cur, table_name, query_data, data.keys(), pk, types)
+    pass
+
+def drug_administration_helper(conn, cur, table_name, data: dict, pk, types):
+    routes=data['ROUTENAME'].split(';')
+    for route in routes:
+        query_data = list()
+        for n in data.keys():
+            if n not in ['ROUTENAME']:
+                query_data.append(data[n])
+            else:
+                query_data.append(route.strip())
+        upsert_into_table(conn, cur, table_name, query_data, data.keys(), pk, types)
+    pass
 # https://www.psycopg.org/docs/sql.html#module-psycopg2.sql
-def build_dynamic_class(name, attribute_names):
-    attr = {}
-    for n in attribute_names:
-        attr[n] = None
-
-    return type(name, (), attr)
-
-
-def build_classes(class_name, class_schemas: dict):
-    #print("\n\n\nClass")
-    #print(class_name)
-    #print("\n\n\n")
-    dynamic_classes_from_config[class_name] = build_dynamic_class(class_name, class_schemas.keys())
-    #print(vars(dynamic_classes_from_config[class_name]))
-    #print(dynamic_classes_from_config[class_name].__dict__)
-
 
 def pk_constraint(pk):
     rule = 'PRIMARY KEY ('
@@ -171,100 +277,8 @@ def create_table(cur, table_name, fields, data_types, constraints):
         pass
 
 
-def preprocess_data(data, types):
-    #print(data)
-    new_data = []
-    for d, t in zip(data, types):
-        str_d = str(d)
-        str_t = str(t)
-        if hasattr(datetime, str_t):
-            cast = getattr(datetime, str_t)
-            try:
-                if cast is datetime.date:
-                    d = datetime.datetime.strptime(str_d, "%Y%m%d").date()
-                else:
-                    d = datetime.datetime.strptime(d, "%Y%m%d")
-            except Exception:
-                d = None
-        if str_t.__contains__("[]"):
-            delim_ver = [d]
-            if str_d.__contains__(";"):
-                delim_ver = str_d.split(";")
-            if t == 'int[]':
-                delim_ver = list(map(int, delim_ver))
-            elif t == 'bool[]':
-                delim_ver = list(map(bool, delim_ver))
-            elif t == 'float[]':
-                delim_ver = list(map(float, delim_ver))
-            new_data.append(delim_ver)
-        else:
-            new_data.append(d)
-    return new_data
-def preprocess_datav3(fields,val):
-    pass
-def preprocess_datav2(df, attributes):
-    #print(data)
-    new_data = []
-
-    for name,type in attributes.items():
-        d=df.get(name)
-        str_d=str(d)
-        str_t=str(type)
-        if hasattr(datetime, str_t):
-            cast = getattr(datetime, str_t)
-            try:
-                if cast is datetime.date:
-                    d = datetime.datetime.strptime(str_d, "%Y%m%d").date()
-                else:
-                    d = datetime.datetime.strptime(d, "%Y%m%d")
-            except Exception:
-                d = None
-        if str_t.__contains__("[]"):
-            delim_ver = [d]
-            if str_d.__contains__(";"):
-                delim_ver = str_d.split(";")
-            if t == 'int[]':
-                delim_ver = list(map(int, delim_ver))
-            elif t == 'bool[]':
-                delim_ver = list(map(bool, delim_ver))
-            elif t == 'float[]':
-                delim_ver = list(map(float, delim_ver))
-            new_data.append(delim_ver)
-        else:
-            new_data.append(d)
-    return new_data
-    pass
-    '''
-    for d, t in zip(data, types):
-        str_d = str(d)
-        str_t = str(t)
-        if hasattr(datetime, str_t):
-            cast = getattr(datetime, str_t)
-            try:
-                if cast is datetime.date:
-                    d = datetime.datetime.strptime(str_d, "%Y%m%d").date()
-                else:
-                    d = datetime.datetime.strptime(d, "%Y%m%d")
-            except Exception:
-                d = None
-        if str_t.__contains__("[]"):
-            delim_ver = [d]
-            if str_d.__contains__(";"):
-                delim_ver = str_d.split(";")
-            if t == 'int[]':
-                delim_ver = list(map(int, delim_ver))
-            elif t == 'bool[]':
-                delim_ver = list(map(bool, delim_ver))
-            elif t == 'float[]':
-                delim_ver = list(map(float, delim_ver))
-            new_data.append(delim_ver)
-        else:
-            new_data.append(d)
-    return new_data
-    '''
-
-
-def upsert_into_table(cur, table_name, data, schema, primary_key):
+def upsert_into_table(conn,cur, table_name, data, schema, primary_key,types):
+    data=preprocess_data(data,types)
     query = sql.SQL('INSERT INTO {name} ({fields})VALUES ({vals}) ON CONFLICT ({pk}) DO UPDATE SET {setter}').format(
         name=sql.Identifier(table_name),
         fields=sql.SQL(',').join(
@@ -285,27 +299,49 @@ def upsert_into_table(cur, table_name, data, schema, primary_key):
 
     )
     try:
-        if (table_name=='rejected_data'):
-            #current transaction is aborted, commands ignored until end of transaction block is the reason the reject insert fails
-            #print(query.as_string(cur))
+        if (table_name == 'rejected_data'):
+            # current transaction is aborted, commands ignored until end of transaction block is the reason the reject insert fails
+            # print(query.as_string(cur))
 
-            #print(data)
+            # print(data)
             pass
-        cur.execute(query, data)#maximum recursion depth exceeded while getting the str of an object; reject table
+        #print(query.as_string(cur))
+        cur.execute(query, data)  # maximum recursion depth exceeded while getting the str of an object; reject table
         # You passed an object to psycopg2 that cannot be converted to a SQL literal, and psycopg2’s adapter is recursively trying to call __str__ or getquoted on it.
-        #the thing below also adds to rejected_data which isnt ideal
-    except psycopg2.Error as e:
+        # the thing below also adds to rejected_data which isnt ideal
 
+    except psycopg2.Error as e:
+        print("FAILED INSERT ")
+        print(query.as_string(cur))
+        print(e)
+        conn.rollback()
+        '''
         if (table_name!='rejected_data'):
             rejected_data.append(Reject(table_name, data, datetime.datetime.now(), str(e)))
             #print(query.as_string(cur))
             #print(e)
 
             raise
+        '''
 
     return
 
-
+def preprocess_data(data, types):
+    new_data = []
+    for d, t in zip(data, types):
+        str_d = str(d)
+        str_t = str(t)
+        if hasattr(datetime, str_t):
+            cast = getattr(datetime, str_t)
+            try:
+                if cast is datetime.date:
+                    d = datetime.datetime.strptime(str_d, "%Y%m%d").date()
+                else:
+                    d = datetime.datetime.strptime(d, "%Y%m%d")
+            except Exception:
+                d = None
+        new_data.append(d)
+    return new_data
 def get_from_table(table_name, str_query):
     query = table_name + str_query
     print(query)

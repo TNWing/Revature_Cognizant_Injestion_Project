@@ -5,24 +5,6 @@ defaults:
   on_conflict: upsert           # options: append | upsert | fail
 
 sources:
-  - name: customer
-    type: csv
-    path: data/customers.csv
-    schemas:
-        schema:
-          name : customer
-          target_table: stg_customers
-          pk: [customer_id]
-          attributes:
-            customer_id: int
-            first_name: str
-            last_name: str
-            email: str
-            created_at: date
-          rules:
-            - email: "CHECK (email LIKE '%@%')"
-            - created_at: "NOT NULL created_at"
-            - first_name: 'CHECK (LENGTH(first_name)>0)'
   - name: drug_product
     type: csv
     path: data/Drugs_product.csv
@@ -48,8 +30,6 @@ sources:
             PRODUCTID : str
           attr_name_map:
             PHARM_CLASS : PHARM_CLASSES
-          data_type_map:
-            PHARM_CLASSES : PHARM_CLASSES
           rules:
             - PRODUCTID : FOREIGN KEY (PRODUCTID) REFERENCES drug_table(PRODUCTID)
       - schema:

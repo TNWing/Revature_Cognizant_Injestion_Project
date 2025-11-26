@@ -2,11 +2,9 @@ import pandas as pd
 from pathlib import Path
 from src import db_manager
 from src import global_vars as globalvars
-from src import entity_converter
 
 
 def read_csv(conn, cur, source):
-    print("Test")
     file_path = globalvars.PARENT_DIR.__str__() + "\\" + source['path']
     schemas = source['schemas']
     if type(schemas) != list:
@@ -16,8 +14,8 @@ def read_csv(conn, cur, source):
 
             rules = schema['rules']
             table_name = schema['target_table']
-            print("\n\n\n\n")
-            print(table_name)
+            #print("\n\n\n\n")
+            #print(table_name)
 
             rule_list = [db_manager.pk_constraint(schema['pk'])]
             if rules is not None:
@@ -33,9 +31,10 @@ def read_csv(conn, cur, source):
         cnt = 0
         for row_dict in df.to_dict(orient="records"):
             cnt = cnt + 1
-            if cnt > 4:
+            if cnt > 50:
                 break
-            print("NEW ROW")
-            entity_converter.process_row(cur, schemas, row_dict, df.keys(), None)
+            #print("NEW ROW")
+            db_manager.process_row(conn,cur, schemas, row_dict, df.keys(), None)
+            conn.commit()
     return
     pass

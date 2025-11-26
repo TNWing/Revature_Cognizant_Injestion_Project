@@ -2,7 +2,6 @@
 from src import global_vars
 from src import config
 import pytest
-from readers.csv_reader import read_csv
 from readers.json_reader import read_json
 from readers.csv_readerv2 import read_csv
 import psycopg2
@@ -11,7 +10,7 @@ from src import db_manager
 from pathlib import Path
 from dotenv import load_dotenv
 
-globals.PARENT_DIR = Path(__file__).resolve().parent.parent
+global_vars.PARENT_DIR = Path(__file__).resolve().parent.parent
 
 
 def read_from_source(conn, cur):
@@ -34,9 +33,13 @@ def read_from_source(conn, cur):
     return
 
 
+
 if __name__ == '__main__':
+
     config.read_config()
+
     load_dotenv()
+    
     conn = psycopg2.connect(
         dbname=os.getenv('DB_NAME'),
         user=os.getenv('DB_USER'),
@@ -44,10 +47,12 @@ if __name__ == '__main__':
         host=os.getenv('DB_HOST'),
         port=os.getenv('DB_PORT')
     )
+
     cur = conn.cursor()
+
     db_manager.create_reject_table(cur)
     read_from_source(conn, cur)
     db_manager.put_in_reject_table(cur)
-    conn.rollback()
     conn.commit()
     conn.close()
+
