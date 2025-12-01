@@ -190,6 +190,7 @@ def drug_class_helper(conn, cur, table_name, data: dict, pk, types):
 
 
 #figure out what to do since strength and unit can be blank
+#i could discard rows for that, and use it as proof of rejection table working
 def drug_units_helper(conn, cur, table_name, data: dict, pk, types):
     strength = [None]
     units = [""]
@@ -315,14 +316,12 @@ def upsert_into_table(conn,cur, table_name, data, schema, primary_key,types):
         print(query.as_string(cur))
         print(e)
         conn.rollback()
-        '''
+
         if (table_name!='rejected_data'):
             rejected_data.append(Reject(table_name, data, datetime.datetime.now(), str(e)))
-            #print(query.as_string(cur))
-            #print(e)
 
-            raise
-        '''
+            #raise
+
 
     return
 
@@ -364,16 +363,19 @@ def create_reject_table( cur):
                  ['serial', 'str', 'str', 'datetime', 'str'], [pk_constraint(['col_id'])])
 
 
-def put_in_reject_table(cur):
+def put_in_reject_table(conn,cur):
     print("Reject table time")
     for data in rejected_data:
-        print("OUR REASON")
+        print("NEW REJECT")
+        print(data.table)
+        print(data.data)#some data is improperly sorted
+        print(data.time)
         print(data.reason)
         data_list = [data.table, data.data, data.time, data.reason]
-        upsert_into_table(cur, 'rejected_data', data_list, ['table_name', 'data', 'time', 'reason'], ['col_id'])
+        upsert_into_table(conn, cur, 'rejected_data', data_list, ['table_name', 'data', 'time', 'reason'], ['col_id'],['str', 'str', 'datetime', 'str'])
     return
 
-
+#conn,cur, table_name, data, schema, primary_key,types
 def is_company_likely_to_make(cur,table_name, company_col_name,drug_col_name,company_name,drug_name):
     """
     Process:
