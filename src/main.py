@@ -18,7 +18,7 @@ def read_from_source(conn, cur):
 
         file_type = str.lower(source['type'])
 
-        if file_type == 'csv':  # and source['path'] != 'data/customers.csv'
+        if file_type == 'csv':
             # read_csv(conn, cur, source)
             read_csv(conn, cur, source)
         elif file_type == "json":

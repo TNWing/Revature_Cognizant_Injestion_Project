@@ -108,7 +108,23 @@ sources:
       ACTIVE_INGRED_UNIT : str[]
       PHARM_CLASSES : str[]
       DEASCHEDULE : str
-    links:
-      ACTIVE_NUMERATOR_STRENGTH : ACTIVE_INGRED_UNIT
-    rules:
+  - name: drug_effects
+    type: json
+    path: data/medical_medicine_dataset.jsonl
+    schemas:
+      - schema:
+          name: drug_side_effects
+          target_table: drug_side_effects
+          pk: [ medicine_name]
+          attributes:
+            medicine_name : str
+            side_effect : str
+          rules:
+    data_types:
+      id: int
+      medicine_name: str
+      description: str
+      uses: str[]
+      side_effects: str[]
+      disclaimer: str
 

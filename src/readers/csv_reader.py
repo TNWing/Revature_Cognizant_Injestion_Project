@@ -22,7 +22,7 @@ def read_csv(conn, cur, source):
                     pass
             db_manager.create_table(cur, table_name, list(schema['attributes'].keys()),
                                     list(schema['attributes'].values()), rule_list)
-            db_manager.commit(conn)
+            conn.commit()
     if Path(file_path).exists():
         df = pd.read_csv(file_path, na_values=[""],
                          dtype={"STARTMARKETINGDATE": "Int64", "ENDMARKETINGDATE": "Int64"})

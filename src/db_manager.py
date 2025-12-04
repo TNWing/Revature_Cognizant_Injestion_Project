@@ -35,11 +35,18 @@ from enum import Enum
     -application # serves as the primary key
     drug id foreign key references drug_table
 """
+"""
+with the medical_medicine_dataset.jsonl, use the following info
+"medicine_name"
+"uses"
+"side_effects"
 
-class Conflict(Enum):
-    APPEND = enum.auto()
-    UPSERT = enum.auto()
-    FAIL = enum.auto()
+and use that to make a separate table.
+
+im pretty sure the medicine names in the jsonl file are the generic names
+ so i can make a method where, given a proprietary name, i can find to see what side effects it has.
+
+"""
 
 
 datatype_converter = {
@@ -63,16 +70,7 @@ class Reject:
         self.time = time
         self.reason = reason
 
-
 rejected_data = []
-
-def commit(conn):
-    conn.commit()
-
-
-def close(conn):
-    conn.close()
-
 
 def process_row(conn, cur, schemas, data: dict):
     for entry in schemas:
@@ -93,7 +91,7 @@ def process_row(conn, cur, schemas, data: dict):
                     pass
 
             func_name = str(name)
-            if (func_name in ['drug_class', 'drug_units','drug_substance','drug_administration']):
+            if (func_name in ['drug_class', 'drug_units','drug_substance','drug_administration', 'drug_side_effects','drug_uses']):
 
                 func_name = func_name.__add__('_helper')
             else:
@@ -101,7 +99,6 @@ def process_row(conn, cur, schemas, data: dict):
             if (func_name in globals()):
                 func = globals()[func_name]
                 func(conn, cur, schema['target_table'], new_data, schema['pk'], types)
-            # new_data is unprocessed however, so there might be lists as elements
             """
 
             """
@@ -116,6 +113,26 @@ def standard_helper(conn, cur, table_name, data: dict, pk, types):
     upsert_into_table(conn, cur, table_name, list(data.values()), data.keys(), pk, types)
     pass
 
+def drug_uses_helper(conn, cur, table_name, data: dict, pk, types):
+    for use in data['uses']:
+        query_data = list()
+        for n in data.keys():
+            if n != 'uses':
+                query_data.append(data[n])
+            else:
+                query_data.append(use)
+        upsert_into_table(conn, cur, table_name, query_data, data.keys(), pk, types)
+    pass
+def drug_side_effects_helper(conn, cur, table_name, data: dict, pk, types):
+    for effect in data['side_effects']:
+        query_data = list()
+        for n in data.keys():
+            if n != 'side_effects':
+                query_data.append(data[n])
+            else:
+                query_data.append(effect)
+        upsert_into_table(conn, cur, table_name, query_data, data.keys(), pk, types)
+
 
 def drug_class_helper(conn, cur, table_name, data: dict, pk, types):
     pharm_classes=[""]
@@ -124,10 +141,11 @@ def drug_class_helper(conn, cur, table_name, data: dict, pk, types):
             pharm_classes = data['PHARM_CLASS'].split(',')
     for pc in pharm_classes:
         query_data = list()
-        query_data.append(pc)
         for n in data.keys():
             if n != 'PHARM_CLASS':
                 query_data.append(data[n])
+            else:
+                query_data.append(pc)
 
         upsert_into_table(conn, cur, table_name, query_data, data.keys(), pk, types)
 
