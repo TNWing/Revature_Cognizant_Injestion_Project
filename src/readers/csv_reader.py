@@ -14,8 +14,6 @@ def read_csv(conn, cur, source):
 
             rules = schema['rules']
             table_name = schema['target_table']
-            #print("\n\n\n\n")
-            #print(table_name)
 
             rule_list = [db_manager.pk_constraint(schema['pk'])]
             if rules is not None:
@@ -28,13 +26,9 @@ def read_csv(conn, cur, source):
     if Path(file_path).exists():
         df = pd.read_csv(file_path, na_values=[""],
                          dtype={"STARTMARKETINGDATE": "Int64", "ENDMARKETINGDATE": "Int64"})
-        cnt = 0
         for row_dict in df.to_dict(orient="records"):
-            cnt = cnt + 1
-            if cnt > 50:
-                break
-            #print("NEW ROW")
-            db_manager.process_row(conn,cur, schemas, row_dict, df.keys(), None)
+            db_manager.process_row(conn,cur, schemas, row_dict)
             conn.commit()
+        print("UNIT CT    ",db_manager.unit_counter)
     return
     pass

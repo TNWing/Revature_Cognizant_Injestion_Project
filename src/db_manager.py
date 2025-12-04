@@ -7,29 +7,6 @@ import psycopg2.sql as sql
 from enum import Enum
 
 """
-for drug data, this is the data in csv
-      PRODUCTID: str
-      PRODUCTNDC : str
-      PRODUCTTYPENAME: str
-      PROPRIETARYNAME: str
-      PROPRIETARYNAMESUFFIX : str
-      NONPROPRIETARYNAME : str
-      DOSAGEFORMNAME: str
-      ROUTENAME : str[]
-      STARTMARKETINGDATE : date
-      ENDMARKETINGDATE : date
-      MARKETINGCATEGORYNAME: str
-      APPLICATIONNUMBER : str
-      LABELERNAME : str
-      SUBSTANCENAME : str[]
-      ACTIVE_NUMERATOR_STRENGTH : float[]
-      ACTIVE_INGRED_UNIT : str[]
-      PHARM_CLASSES : str[]
-      DEASCHEDULE : str
-      
-    Notes:
-    strength and unit are the same size (eg: if there are 2 strength levels of the drug, there are 2 corresponding units for each strenegth level
-      
   drug_classes
   -drug_id, referencing drug_table
   -pharm class
@@ -64,26 +41,6 @@ class Conflict(Enum):
     UPSERT = enum.auto()
     FAIL = enum.auto()
 
-class DrugProduct:
-    def __init__(self, prod_id, ndc, prod_type, generic, brand, substances, dea):
-        self.id = prod_id
-        self.ndc = ndc
-        self.type = prod_type
-        self.name_generic = generic
-        self.name_brand = brand
-        self.dosage = ""
-        self.route = ""
-        self.manufacture_start = ""
-        self.manufacture_end = ""
-        self.marketing = ""
-        self.labeler = ""
-        self.substances = substances.split(';')
-        self.pharm_classes = ""
-        self.dea = dea.split(",")
-        return
-
-
-dynamic_classes_from_config = {}
 
 datatype_converter = {
     'str': 'VARCHAR',
@@ -108,11 +65,6 @@ class Reject:
 
 
 rejected_data = []
-# make this a list instead
-'''
-such that each entry in list is a reject_data class
-'''
-
 
 def commit(conn):
     conn.commit()
@@ -122,17 +74,12 @@ def close(conn):
     conn.close()
 
 
-def process_row(conn, cur, schemas, data: dict, data_types, links):
+def process_row(conn, cur, schemas, data: dict):
     for entry in schemas:
-        # print("NEW SET OF INSERTS")
         for schema in entry.values():
-            # print(schema)
-            # print(data)
-            # print(data_types)
             name = schema['name']
             types = schema['attributes'].values()
             new_data = {}
-            # need to format the multi element values into a list
             if ('attr_name_map' in schema.keys()):
                 for attr in schema['attributes'].keys():
                     if (attr in schema['attr_name_map']):
@@ -151,7 +98,6 @@ def process_row(conn, cur, schemas, data: dict, data_types, links):
                 func_name = func_name.__add__('_helper')
             else:
                 func_name = 'standard_helper'
-            # print(new_data)
             if (func_name in globals()):
                 func = globals()[func_name]
                 func(conn, cur, schema['target_table'], new_data, schema['pk'], types)
@@ -188,35 +134,65 @@ def drug_class_helper(conn, cur, table_name, data: dict, pk, types):
     pass
 
 
-
+#NOTE: strength and unit arent always the same size. need to rework this as a result
 #figure out what to do since strength and unit can be blank
 #i could discard rows for that, and use it as proof of rejection table working
+#strength cnt >=unit cnt
+'''
+there must be 3 situations
+1. strength cnt=unit cnt, single
+2. strength cnt=unit cnt, multiple
+3. strength cnt: multiple, unit cnt=1
+'''
+unit_counter=0
 def drug_units_helper(conn, cur, table_name, data: dict, pk, types):
+    global unit_counter
     strength = [None]
     units = [""]
+    #print("UNITS   ",data['STRENGTH'],data['UNIT'])
+
     if (type(data['STRENGTH']) is float):
         if not math.isnan(data['STRENGTH']):
             strength = data['STRENGTH'].split(';')
             units = data['UNIT'].split(';')
-    # print(strength)
-    # print(units)
-    for s, u in zip(strength, units):
-        query_data = list()
+        else:
+            unit_counter += 1
+    else:
+        strength = data['STRENGTH'].split(';')
+        units = data['UNIT'].split(';')
 
-        for n in data.keys():
-            if n not in ['STRENGTH', 'UNIT']:
-                query_data.append(data[n])
-            elif n == 'STRENGTH':
-                if (s is None):
-                    query_data.append(None)
+    if (strength.__sizeof__()==units.__sizeof__()):
+        for s, u in zip(strength, units):
+            query_data = list()
+
+            for n in data.keys():
+                if n not in ['STRENGTH', 'UNIT']:
+                    query_data.append(data[n])
+                elif n == 'STRENGTH':
+                    if (s is None):
+                        query_data.append(None)
+                    else:
+                        query_data.append(s.strip())
                 else:
-                    query_data.append(s.strip())
-            else:
-                query_data.append(u.strip())
-        upsert_into_table(conn, cur, table_name, query_data, data.keys(), pk, types)
+                    query_data.append(u.strip())
+            upsert_into_table(conn, cur, table_name, query_data, data.keys(), pk, types)
+    elif (strength.__sizeof__()>units.__sizeof__() and units.__sizeof__()==1):
+        u = units[0]
+        for s in strength:
 
-    new_data = []
-    return new_data
+            query_data = list()
+            for n in data.keys():
+                if n not in ['STRENGTH', 'UNIT']:
+                    query_data.append(data[n])
+                elif n == 'STRENGTH':
+                    if (s is None):
+                        query_data.append(None)
+                    else:
+                        query_data.append(s.strip())
+                else:
+                    query_data.append(u.strip())
+            upsert_into_table(conn, cur, table_name, query_data, data.keys(), pk, types)
+
 
 def drug_substance_helper(conn, cur, table_name, data: dict, pk, types):
     substances=[""]
@@ -233,8 +209,15 @@ def drug_substance_helper(conn, cur, table_name, data: dict, pk, types):
         upsert_into_table(conn, cur, table_name, query_data, data.keys(), pk, types)
     pass
 
+
+
 def drug_administration_helper(conn, cur, table_name, data: dict, pk, types):
-    routes=data['ROUTENAME'].split(';')
+    routes=[""]
+    if (type(data['ROUTENAME']) is float):
+        if not math.isnan(data['ROUTENAME']):
+            routes = data['ROUTENAME'].split(';')
+    else:
+        routes = data['ROUTENAME'].split(';')
     for route in routes:
         query_data = list()
         for n in data.keys():
@@ -244,7 +227,7 @@ def drug_administration_helper(conn, cur, table_name, data: dict, pk, types):
                 query_data.append(route.strip())
         upsert_into_table(conn, cur, table_name, query_data, data.keys(), pk, types)
     pass
-# https://www.psycopg.org/docs/sql.html#module-psycopg2.sql
+
 
 def pk_constraint(pk):
     rule = 'PRIMARY KEY ('
@@ -254,7 +237,6 @@ def pk_constraint(pk):
             rule = rule + ','
     rule = rule + ")"
     return rule
-
 
 def create_table(cur, table_name, fields, data_types, constraints):
 
@@ -301,28 +283,19 @@ def upsert_into_table(conn,cur, table_name, data, schema, primary_key,types):
     )
     try:
         if (table_name == 'rejected_data'):
-            # current transaction is aborted, commands ignored until end of transaction block is the reason the reject insert fails
-            # print(query.as_string(cur))
-
             # print(data)
             pass
-        #print(query.as_string(cur))
-        cur.execute(query, data)  # maximum recursion depth exceeded while getting the str of an object; reject table
-        # You passed an object to psycopg2 that cannot be converted to a SQL literal, and psycopg2’s adapter is recursively trying to call __str__ or getquoted on it.
-        # the thing below also adds to rejected_data which isnt ideal
+        cur.execute(query, data)
+        #print("Success insert into table".__add__(table_name))
 
     except psycopg2.Error as e:
-        print("FAILED INSERT ")
-        print(query.as_string(cur))
-        print(e)
+        #print("FAILED INSERT int table ".__add__(table_name))
+        #print(data)
+        #print(e)
         conn.rollback()
 
         if (table_name!='rejected_data'):
             rejected_data.append(Reject(table_name, data, datetime.datetime.now(), str(e)))
-
-            #raise
-
-
     return
 
 def preprocess_data(data, types):
@@ -355,8 +328,6 @@ def drop_table(cur, table_name):
     return
 
 
-# create_table(cur, table_name, fields, data_types, constraints):
-
 def create_reject_table( cur):
     # have a pk that is auto assigned
     create_table(cur, 'rejected_data', ['col_id', 'table_name', 'data', 'time', 'reason'],
@@ -364,7 +335,6 @@ def create_reject_table( cur):
 
 
 def put_in_reject_table(conn,cur):
-    print("Reject table time")
     for data in rejected_data:
         print("NEW REJECT")
         print(data.table)
@@ -376,7 +346,7 @@ def put_in_reject_table(conn,cur):
     return
 
 #conn,cur, table_name, data, schema, primary_key,types
-def is_company_likely_to_make(cur,table_name, company_col_name,drug_col_name,company_name,drug_name):
+def is_company_likely_to_make(cur, drug_table,drug_company,drug_class, company_col_name, drug_col_name, company_name, drug_name):
     """
     Process:
     -see if company is already making drug_name (generic)
@@ -393,22 +363,34 @@ def is_company_likely_to_make(cur,table_name, company_col_name,drug_col_name,com
     """
     query=(sql.SQL('SELECT * FROM {name} WHERE {c_col} = {c_name} AND {d_col} = {d_name}')
            .format(
-        name=sql.Identifier(table_name),
+        name=sql.Identifier(drug_table),
         c_col=sql.Identifier(company_col_name),
         c_name=sql.Identifier(company_name),
         d_col=sql.Identifier(drug_col_name),
         d_name=sql.Identifier(drug_name),
     ))
+    '''
+    select classes from drug_table join drug_classes where prodid=given id(d1)
+    select drug_ids from drug_company where companyname="" (d2)
+    join d2 on drug_classes (d3), select pharm_classes, count(pharm_classes) group by pharm_classes
+    count total # of drugs the company has produced, and calculate % of drugs that match at least 1 pharm class of the drug given in the params
+        -do this by:
+        (d4) count(prod_id) drug_company where company=""
+    '''
     cur.execute(query)
     results=cur.fetchall()
     if not results:
         print("Company has not produced this drug yet.")
         query=sql.SQL('SELECT COUNT({p_col}) FROM {name} WHERE {c_col}={c_name}').format(
             p_col=sql.Identifier(""),
-            name=sql.Identifier(table_name),
+            name=sql.Identifier(drug_table),
             c_col=sql.Identifier(company_col_name),
             c_name=sql.Identifier(company_name)
+
         )
+        '''
+        take the previously joined table and join it with the drug_classes
+        '''
     else:
         print("Company has produced this drug.")
         pass
