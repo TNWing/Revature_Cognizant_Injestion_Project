@@ -23,8 +23,11 @@ def read_json(conn, cur, source):
                                     list(schema['attributes'].values()), rule_list)
             conn.commit()
     if Path(file_path).exists():
-        # TODO see if this read works
-        df = pd.read_json(file_path, lines=True)#ValueError: Unexpected character found when decoding array value (2)
+        df=None
+        if (file_path.endswith(".jsonl")):
+            df = pd.read_json(file_path, lines=True)
+        else:
+            df = pd.read_json(file_path)
         for row_dict in df.to_dict(orient="records"):
             db_manager.process_row(conn,cur, schemas, row_dict)
             conn.commit()
