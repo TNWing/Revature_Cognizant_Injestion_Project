@@ -113,12 +113,24 @@ sources:
     path: data/medical_medicine_dataset.jsonl
     schemas:
       - schema:
+          name: drug_uses
+          target_table: drug_uses
+          pk: [ medicine_name, use ]
+          attributes:
+            medicine_name: str
+            use: str
+          attr_name_map:
+            use: uses
+          rules:
+      - schema:
           name: drug_side_effects
           target_table: drug_side_effects
-          pk: [ medicine_name]
+          pk: [ medicine_name, side_effect]
           attributes:
             medicine_name : str
             side_effect : str
+          attr_name_map:
+            side_effect: side_effects
           rules:
     data_types:
       id: int

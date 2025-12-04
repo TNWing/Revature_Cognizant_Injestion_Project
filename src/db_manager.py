@@ -114,8 +114,10 @@ def standard_helper(conn, cur, table_name, data: dict, pk, types):
     pass
 
 def drug_uses_helper(conn, cur, table_name, data: dict, pk, types):
-    for use in data['uses']:
+
+    for use in data['use']:
         query_data = list()
+        print(use)
         for n in data.keys():
             if n != 'uses':
                 query_data.append(data[n])
@@ -124,7 +126,7 @@ def drug_uses_helper(conn, cur, table_name, data: dict, pk, types):
         upsert_into_table(conn, cur, table_name, query_data, data.keys(), pk, types)
     pass
 def drug_side_effects_helper(conn, cur, table_name, data: dict, pk, types):
-    for effect in data['side_effects']:
+    for effect in data['side_effect']:
         query_data = list()
         for n in data.keys():
             if n != 'side_effects':
