@@ -119,7 +119,7 @@ def drug_uses_helper(conn, cur, table_name, data: dict, pk, types):
         query_data = list()
         print(use)
         for n in data.keys():
-            if n != 'uses':
+            if n != 'use':
                 query_data.append(data[n])
             else:
                 query_data.append(use)
@@ -129,7 +129,7 @@ def drug_side_effects_helper(conn, cur, table_name, data: dict, pk, types):
     for effect in data['side_effect']:
         query_data = list()
         for n in data.keys():
-            if n != 'side_effects':
+            if n != 'side_effect':
                 query_data.append(data[n])
             else:
                 query_data.append(effect)
