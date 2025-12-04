@@ -24,12 +24,6 @@ def read_from_source(conn, cur):
         elif file_type == "json":
             read_json(conn, cur, source)
             pass
-    print("CHECK CLASSES")
-    for d_class, class_data in db_manager.dynamic_classes_from_config.items():
-        print(d_class)
-        print(dir(class_data))
-        print(vars(class_data))
-        print(class_data.__dict__)
     return
 
 

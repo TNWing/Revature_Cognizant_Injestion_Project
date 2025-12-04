@@ -1,33 +1,95 @@
-# config/sources.yml
 defaults:
   db_url: postgresql+psycopg://user:pass@localhost:5432/ingest_db
   batch_size: 5000
   on_conflict: upsert           # options: append | upsert | fail
+  commit_freq_type: insert   # options: insert | row
+  commit_freq : 1 #options: any non-negative int. 0 means only commits when everything is done. risky
 
 sources:
-  - name: customer
-    type: csv
-    path: data/customers.csv
-    target_table: stg_customers
-    pk: [customer_id]
-    schema:
-      customer_id: int
-      first_name: str
-      last_name: str
-      email: str
-      created_at: date
-    rules:
-      - email: "CHECK (email LIKE '%@%')"
-      - created_at: "NOT NULL created_at"
-      - first_name: 'CHECK (LENGTH(first_name)>0)'
-    clean: #determine what col data to standardize, and what standardize method
-      - age: {test,etst}
   - name: drug_product
     type: csv
     path: data/Drugs_product.csv
-    target_table: drug_data
-    pk: [PRODUCTID]
-    schema:
+    schemas:
+      - schema:
+          name : drug_product
+          target_table: drug_table
+          pk: [PRODUCTID]
+          attributes:
+            PRODUCTID : str
+            PRODUCTNDC : str
+            PRODUCTTYPENAME: str
+            PROPRIETARYNAME: str
+            PROPRIETARYNAMESUFFIX: str
+            DEASCHEDULE : str
+          rules:
+      - schema:
+          name : drug_class
+          target_table: drug_classes
+          pk: [PRODUCTID,PHARM_CLASS]
+          attributes:
+            PHARM_CLASS : str
+            PRODUCTID : str
+          attr_name_map:
+            PHARM_CLASS : PHARM_CLASSES
+          rules:
+            - PRODUCTID : FOREIGN KEY (PRODUCTID) REFERENCES drug_table(PRODUCTID)
+      - schema:
+          name : drug_substance
+          target_table : drug_substances
+          pk: [ PRODUCTID,SUBSTANCENAME ]
+          attributes:
+            SUBSTANCENAME: str
+            PRODUCTID: str
+          rules:
+            - PRODUCTID: FOREIGN KEY (PRODUCTID) REFERENCES drug_table(PRODUCTID)
+      - schema:
+          name : drug_administration
+          target_table: drug_administration_method
+          pk: [ PRODUCTID,DOSAGEFORMNAME,ROUTENAME ]
+          attributes:
+            DOSAGEFORMNAME: str
+            ROUTENAME: str
+            PRODUCTID: str
+          rules:
+            - PRODUCTID: FOREIGN KEY (PRODUCTID) REFERENCES drug_table(PRODUCTID)
+      - schema:
+          name : drug_units
+          target_table: drug_administration_units
+          pk: [ PRODUCTID,STRENGTH,UNIT]
+          attributes:
+            STRENGTH: float
+            UNIT: str
+            PRODUCTID: str
+          attr_name_map:
+            STRENGTH : ACTIVE_NUMERATOR_STRENGTH
+            UNIT : ACTIVE_INGRED_UNIT
+          rules:
+            - PRODUCTID: FOREIGN KEY (PRODUCTID) REFERENCES drug_table(PRODUCTID)
+          links:
+            -STRENGTH : UNIT
+      - schema:
+          name: drug_alias
+          target_table: drug_alias
+          pk: [ PRODUCTID,NONPROPRIETARYNAME ]
+          attributes:
+            NONPROPRIETARYNAME : str
+            PRODUCTID: str
+          rules:
+            - PRODUCTID: FOREIGN KEY (PRODUCTID) REFERENCES drug_table(PRODUCTID)
+      - schema:
+          name : drug_company
+          target_table: drug_company
+          pk: [ APPLICATIONNUMBER ]
+          attributes:
+            STARTMARKETINGDATE: date
+            ENDMARKETINGDATE: date
+            MARKETINGCATEGORYNAME: str
+            APPLICATIONNUMBER: str
+            LABELERNAME: str
+            PRODUCTID: str
+          rules:
+            - PRODUCTID: FOREIGN KEY (PRODUCTID) REFERENCES drug_table(PRODUCTID)
+    data_types:
       PRODUCTID: str
       PRODUCTNDC : str
       PRODUCTTYPENAME: str
@@ -46,5 +108,7 @@ sources:
       ACTIVE_INGRED_UNIT : str[]
       PHARM_CLASSES : str[]
       DEASCHEDULE : str
+    links:
+      ACTIVE_NUMERATOR_STRENGTH : ACTIVE_INGRED_UNIT
     rules:
 
