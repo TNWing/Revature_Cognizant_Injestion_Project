@@ -1,10 +1,10 @@
-import enum
 import math
-
 import psycopg2
 import datetime
 import psycopg2.sql as sql
-from enum import Enum
+
+
+
 
 """
   drug_classes
@@ -71,8 +71,92 @@ class Reject:
         self.reason = reason
 
 rejected_data = []
+'''
+Monitoring 	Track load metrics (rows/sec, rejects/sec) and log to a dashboard.
+
+'''
+row_speed=[]
+insert_speed=[]
+rej_speed=[]
+monitor_times=[]
+row_cnt=0
+insert_cnt=0
+rej_cnt=0
+current_time_stamp=None
+
+def reset_monitor_vars():
+    global row_speed, insert_speed, rej_speed, row_cnt, insert_cnt, rej_cnt, current_time_stamp,monitor_times
+    row_speed = []
+    insert_speed = []
+    rej_speed = []
+    monitor_times = []
+    row_cnt = 0
+    insert_cnt = 0
+    rej_cnt = 0
+    current_time_stamp = datetime.datetime.now()
+#todo add a variant that runs regardless of the time difference to account foor the last set of inserts and whatnot
+def monitor_func(force_monitor=False):
+    global row_speed, insert_speed, rej_speed, row_cnt, insert_cnt, rej_cnt, current_time_stamp,monitor_times
+    if (datetime.datetime.now() - current_time_stamp).total_seconds() >= 1 or force_monitor:
+
+        row_speed.append(row_cnt)
+        insert_speed.append(insert_cnt)
+        rej_speed.append(rej_cnt)
+        monitor_times.append((datetime.datetime.now() - current_time_stamp).total_seconds())
+        current_time_stamp = datetime.datetime.now()
+        row_cnt = 0
+        insert_cnt = 0
+        rej_cnt = 0
+        pass
+
+def monitor_output():
+    global row_speed, insert_speed, rej_speed, monitor_times
+    row_total=0
+    ins_total=0
+    rej_total=0
+    row_time=0
+    ins_time=0
+    rej_time=0
+    for (row,ins,rej,time) in zip(row_speed,insert_speed,rej_speed,monitor_times):
+        if (rej!=0):
+            rej_total += rej
+            rej_time += time
+        if (ins!=0):
+            ins_total += ins
+            ins_time += time
+        row_total += row
+        row_time +=time
+    if (row_time!=0):
+        print("Row Stats\nTotal:{}\nTime:{}\nAverage(per second):{}\n\n".format(row_total,row_time,row_total/row_time))
+    else:
+        print("No complete rows were inserted")
+    if (ins_time!=0):
+        print("Insert Stats\nTotal:{}\nTime:{}\nAverage(per second):{}\n\n".format(ins_total,ins_time,ins_total/ins_time))
+    else:
+        print("No inserted data")
+    if (rej_time!=0):
+        print("Reject Stats\nTotal:{}\nTime:{}\nAverage(per second):{}".format(rej_total,rej_time,rej_total/rej_time))
+    else:
+        print("No rejected data")
+
+
+    pass
+
+def process_rows(conn, cur, schemas, df):
+    global row_cnt, current_time_stamp
+    reset_monitor_vars()
+    for row_dict in df.to_dict(orient="records"):
+        process_row(conn, cur, schemas, row_dict)
+        row_cnt +=1
+        monitor_func()
+        conn.commit()
+    if (row_cnt!=0):
+        monitor_func(True)
+    monitor_output()
+    pass
 
 def process_row(conn, cur, schemas, data: dict):
+
     for entry in schemas:
         for schema in entry.values():
             name = schema['name']
@@ -117,7 +201,6 @@ def drug_uses_helper(conn, cur, table_name, data: dict, pk, types):
 
     for use in data['use']:
         query_data = list()
-        print(use)
         for n in data.keys():
             if n != 'use':
                 query_data.append(data[n])
@@ -134,6 +217,8 @@ def drug_side_effects_helper(conn, cur, table_name, data: dict, pk, types):
             else:
                 query_data.append(effect)
         upsert_into_table(conn, cur, table_name, query_data, data.keys(), pk, types)
+
+
 
 
 def drug_class_helper(conn, cur, table_name, data: dict, pk, types):
@@ -281,6 +366,7 @@ def create_table(cur, table_name, fields, data_types, constraints):
 
 
 def upsert_into_table(conn,cur, table_name, data, schema, primary_key,types):
+    global rejected_data, insert_cnt,rej_cnt
     data=preprocess_data(data,types)
     query = sql.SQL('INSERT INTO {name} ({fields})VALUES ({vals}) ON CONFLICT ({pk}) DO UPDATE SET {setter}').format(
         name=sql.Identifier(table_name),
@@ -306,6 +392,7 @@ def upsert_into_table(conn,cur, table_name, data, schema, primary_key,types):
             # print(data)
             pass
         cur.execute(query, data)
+        insert_cnt += 1
         #print("Success insert into table".__add__(table_name))
 
     except psycopg2.Error as e:
@@ -316,6 +403,9 @@ def upsert_into_table(conn,cur, table_name, data, schema, primary_key,types):
 
         if (table_name!='rejected_data'):
             rejected_data.append(Reject(table_name, data, datetime.datetime.now(), str(e)))
+            rej_cnt+=1
+    finally:
+        monitor_func()
     return
 
 def preprocess_data(data, types):
@@ -356,11 +446,6 @@ def create_reject_table( cur):
 
 def put_in_reject_table(conn,cur):
     for data in rejected_data:
-        print("NEW REJECT")
-        print(data.table)
-        print(data.data)#some data is improperly sorted
-        print(data.time)
-        print(data.reason)
         data_list = [data.table, data.data, data.time, data.reason]
         upsert_into_table(conn, cur, 'rejected_data', data_list, ['table_name', 'data', 'time', 'reason'], ['col_id'],['str', 'str', 'datetime', 'str'])
     return
@@ -415,3 +500,54 @@ def is_company_likely_to_make(cur, drug_table,drug_company,drug_class, company_c
         print("Company has produced this drug.")
         pass
     return
+
+
+def get_side_effect_from_brand_name(conn,cur,brand_name):
+    query=sql.SQL('SELECT NONPROPRIETARYNAME FROM drug_alias JOIN drug_table on drug_alias.PRODUCTID=drug_table.PRODUCTID WHERE PROPRIETARYNAME={name}').format(
+        name=sql.Placeholder()
+    )
+    try:
+        print(brand_name)
+        cur.execute(query,brand_name)
+        fetched_data=cur.fetchone()
+        print(fetched_data)
+        if (fetched_data is not None):
+            generic_name=fetched_data[0]
+            print(generic_name)
+            query=sql.SQL('SELECT side_effect FROM drug_side_effects WHERE medicine_name={name}').format(
+                name=sql.Placeholder()
+            )
+            try:
+                cur.execute(query, generic_name)
+                side_effects=cur.fetchall()
+                if (side_effects is not None):
+                    print("The drug has the following side effects:")
+                    for side_effect in side_effects:
+                        print(side_effect)
+                else:
+                    print("No known side effects")
+            except Exception as e:
+                pass
+        else:
+            print("No associated generic name")
+
+    except Exception as e:
+        print("ERR")
+        print(e)
+        print(query.as_string(cur))
+        '''
+        ERR
+column "Strattera" does not exist
+LINE 1: ...DUCTID=drug_table.PRODUCTID WHERE PROPRIETARYNAME="Strattera...
+                                                             ^
+
+SELECT NONPROPRIETARYNAME FROM drug_alias JOIN drug_table on drug_alias.PRODUCTID=drug_table.PRODUCTID WHERE PROPRIETARYNAME="Strattera"
+        '''
+        pass
+    pass
+
+def get_uses_from_brand_name(conn,cur,brand_name):
+    pass
+
+def get_medicine_for_condition(conn,cur,condition):
+    pass

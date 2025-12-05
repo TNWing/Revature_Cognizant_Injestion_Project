@@ -19,8 +19,7 @@ def read_from_source(conn, cur):
         file_type = str.lower(source['type'])
 
         if file_type == 'csv':
-            # read_csv(conn, cur, source)
-            #read_csv(conn, cur, source)
+            read_csv(conn, cur, source)
             pass
         elif file_type == "json":
             read_json(conn, cur, source)
@@ -48,6 +47,7 @@ if __name__ == '__main__':
     db_manager.create_reject_table(cur)
     read_from_source(conn, cur)
     db_manager.put_in_reject_table(conn,cur)
+    #db_manager.get_side_effect_from_brand_name(conn,cur,'Strattera')
     conn.commit()
     conn.close()
 

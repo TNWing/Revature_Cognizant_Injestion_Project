@@ -23,12 +23,10 @@ def read_json(conn, cur, source):
                                     list(schema['attributes'].values()), rule_list)
             conn.commit()
     if Path(file_path).exists():
-        df=None
         if (file_path.endswith(".jsonl")):
             df = pd.read_json(file_path, lines=True)
         else:
             df = pd.read_json(file_path)
-        for row_dict in df.to_dict(orient="records"):
-            db_manager.process_row(conn,cur, schemas, row_dict)
-            conn.commit()
+        db_manager.process_rows(conn, cur, schemas, df)
+        conn.commit()
     return

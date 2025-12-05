@@ -26,9 +26,9 @@ def read_csv(conn, cur, source):
     if Path(file_path).exists():
         df = pd.read_csv(file_path, na_values=[""],
                          dtype={"STARTMARKETINGDATE": "Int64", "ENDMARKETINGDATE": "Int64"})
-        for row_dict in df.to_dict(orient="records"):
-            db_manager.process_row(conn,cur, schemas, row_dict)
-            conn.commit()
+        #datetime.datetime.now()
+        #move this below to db_maanger
+        db_manager.process_rows(conn,cur, schemas, df)
         print("UNIT CT    ",db_manager.unit_counter)
     return
     pass
