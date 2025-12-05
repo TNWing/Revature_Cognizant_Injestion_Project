@@ -501,53 +501,76 @@ def is_company_likely_to_make(cur, drug_table,drug_company,drug_class, company_c
         pass
     return
 
-
-def get_side_effect_from_brand_name(conn,cur,brand_name):
-    query=sql.SQL('SELECT NONPROPRIETARYNAME FROM drug_alias JOIN drug_table on drug_alias.PRODUCTID=drug_table.PRODUCTID WHERE PROPRIETARYNAME={name}').format(
-        name=sql.Placeholder()
+#https://pandas.pydata.org/docs/reference/api/pandas.read_sql_query.html
+#https://stackoverflow.com/questions/24408557/pandas-read-sql-with-parameters
+def get_side_effect_from_brand_name(cur, brand_name):
+    query=sql.SQL('SELECT NONPROPRIETARYNAME FROM drug_alias JOIN drug_table on drug_alias.PRODUCTID=drug_table.PRODUCTID WHERE LOWER(PROPRIETARYNAME)={name}').format(
+        name=sql.Placeholder("name")
     )
     try:
-        print(brand_name)
-        cur.execute(query,brand_name)
+        cur.execute(query,{"name":brand_name.lower()})
         fetched_data=cur.fetchone()
-        print(fetched_data)
-        if (fetched_data is not None):
+        if fetched_data is not None and fetched_data is not []:
             generic_name=fetched_data[0]
-            print(generic_name)
-            query=sql.SQL('SELECT side_effect FROM drug_side_effects WHERE medicine_name={name}').format(
-                name=sql.Placeholder()
+            query=sql.SQL('SELECT side_effect FROM drug_side_effects WHERE LOWER(medicine_name)={name}').format(
+                name=sql.Placeholder("name")
             )
             try:
-                cur.execute(query, generic_name)
+                cur.execute(query,{"name":generic_name.lower()})
                 side_effects=cur.fetchall()
-                if (side_effects is not None):
+                print(side_effects)
+                if side_effects is not []:
                     print("The drug has the following side effects:")
                     for side_effect in side_effects:
                         print(side_effect)
                 else:
-                    print("No known side effects")
+                    print("No side effects for this drug are recorded in this dataset")
             except Exception as e:
+                print("ERR")
+                print(e)
+                print(query.as_string(cur))
                 pass
         else:
-            print("No associated generic name")
+            query = sql.SQL('SELECT * FROM drug_side_effects WHERE LOWER(medicine_name)={name}').format(
+                name=sql.Placeholder("name")
+            )
+            try:
+                cur.execute(query,{"name":brand_name.lower()})
+                if (cur.fetchone() is not  None and fetched_data is not []):
+                    query = sql.SQL('SELECT side_effect FROM drug_side_effects WHERE LOWER(medicine_name)={name}').format(
+                        name=sql.Placeholder("name")
+                    )
+                    try:
+                        cur.execute(query, {"name": brand_name.lower()})
+                        side_effects = cur.fetchall()
+                        print(side_effects)
+                        if side_effects is not []:
+                            print("The drug has the following side effects:")
+                            for side_effect in side_effects:
+                                print(side_effect)
+                        else:
+                            print("No side effects for this drug are recorded in this dataset")
+                    except Exception as e:
+                        pass
+                else:
+                    print("No medicine with this name is recorded in the database.")
+
+            except Exception as e:
+                pass
+
 
     except Exception as e:
         print("ERR")
         print(e)
         print(query.as_string(cur))
-        '''
-        ERR
-column "Strattera" does not exist
-LINE 1: ...DUCTID=drug_table.PRODUCTID WHERE PROPRIETARYNAME="Strattera...
-                                                             ^
-
-SELECT NONPROPRIETARYNAME FROM drug_alias JOIN drug_table on drug_alias.PRODUCTID=drug_table.PRODUCTID WHERE PROPRIETARYNAME="Strattera"
-        '''
         pass
     pass
 
-def get_uses_from_brand_name(conn,cur,brand_name):
+def get_uses_from_name(cur,name):
     pass
 
-def get_medicine_for_condition(conn,cur,condition):
+def get_medicine_for_condition(cur,condition):
+    pass
+
+def does_company_make_drug_for_condition(cur,company,condition):
     pass

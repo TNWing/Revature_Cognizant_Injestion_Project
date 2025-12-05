@@ -13,8 +13,8 @@ from dotenv import load_dotenv
 global_vars.PARENT_DIR = Path(__file__).resolve().parent.parent
 
 
-def read_from_source(conn, cur):
-    for source in config.source_list:
+def read_from_source(conn, cur,sources):
+    for source in sources:
 
         file_type = str.lower(source['type'])
 
@@ -24,13 +24,15 @@ def read_from_source(conn, cur):
         elif file_type == "json":
             read_json(conn, cur, source)
             pass
+        else:
+            print("Invalid file type found {}".format(file_type))
     return
 
 
 
 if __name__ == '__main__':
 
-    config.read_config()
+    sources=config.read_config()
 
     load_dotenv()
     
@@ -45,9 +47,11 @@ if __name__ == '__main__':
     cur = conn.cursor()
 
     db_manager.create_reject_table(cur)
-    read_from_source(conn, cur)
+    read_from_source(conn, cur,sources)
     db_manager.put_in_reject_table(conn,cur)
-    #db_manager.get_side_effect_from_brand_name(conn,cur,'Strattera')
+    db_manager.get_side_effect_from_brand_name(cur,'Paliperidone')
+    print("BREAK")
+    db_manager.get_side_effect_from_brand_name(cur,'Paliperidonedas')
     conn.commit()
     conn.close()
 
