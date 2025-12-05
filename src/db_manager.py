@@ -127,15 +127,15 @@ def monitor_output():
         row_total += row
         row_time +=time
     if (row_time!=0):
-        print("Row Stats\nTotal:{}\nTime:{}\nAverage(per second):{}\n\n".format(row_total,row_time,row_total/row_time))
+        print("Row Stats\nTotal:{}\nTime:{}\nAverage(per second):{}\n".format(row_total,row_time,row_total/row_time))
     else:
         print("No complete rows were inserted")
     if (ins_time!=0):
-        print("Insert Stats\nTotal:{}\nTime:{}\nAverage(per second):{}\n\n".format(ins_total,ins_time,ins_total/ins_time))
+        print("Insert Stats\nTotal:{}\nTime:{}\nAverage(per second):{}\n".format(ins_total,ins_time,ins_total/ins_time))
     else:
         print("No inserted data")
     if (rej_time!=0):
-        print("Reject Stats\nTotal:{}\nTime:{}\nAverage(per second):{}".format(rej_total,rej_time,rej_total/rej_time))
+        print("Reject Stats\nTotal:{}\nTime:{}\nAverage(per second):{}\n\n".format(rej_total,rej_time,rej_total/rej_time))
     else:
         print("No rejected data")
 
