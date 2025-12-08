@@ -10,12 +10,15 @@ Data Sources are defined as such in the config
   - name(generic name for the data): 
   - type(the way data is stored): 
   - path(path to data file):
-  - target_table(table name): 
-  - pk(list representing the columns used for the primary key): 
-  - schema(format for the entries of the table):
-    - attribute_name: attribute_type
+  - schemas (the tables associated with this dataset)
+    - schema:
+      - name:
+      - target_table
+      - pk(list representing the columns used for the primary key): 
+      - attributes
+      - attr_name_map
+      - rules:
+        - attribute_name: attribute_constraint (sql code of the constraint)
+        - first_name: 'CHECK (LENGTH(first_name)>0)'
+  - data_types:
   - rules:
-    - attribute_name: attribute_constraint (sql code of the constraint)
-    - first_name: 'CHECK (LENGTH(first_name)>0)'
-  - clean(determine what column data to standardize, and what standardize method to use):
-    - attribute_name: {method}

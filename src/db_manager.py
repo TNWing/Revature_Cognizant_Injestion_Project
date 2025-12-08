@@ -3,9 +3,6 @@ import psycopg2
 import datetime
 import psycopg2.sql as sql
 
-
-
-
 """
   drug_classes
   -drug_id, referencing drug_table
@@ -48,7 +45,6 @@ im pretty sure the medicine names in the jsonl file are the generic names
 
 """
 
-
 datatype_converter = {
     'str': 'VARCHAR',
     'str[]': 'VARCHAR[]',
@@ -69,23 +65,26 @@ class Reject:
         self.data = data
         self.time = time
         self.reason = reason
+        if time is None:
+            print("Why is time none")
 
 rejected_data = []
 '''
 Monitoring 	Track load metrics (rows/sec, rejects/sec) and log to a dashboard.
 
 '''
-row_speed=[]
-insert_speed=[]
-rej_speed=[]
-monitor_times=[]
-row_cnt=0
-insert_cnt=0
-rej_cnt=0
-current_time_stamp=None
+row_speed = []
+insert_speed = []
+rej_speed = []
+monitor_times = []
+row_cnt = 0
+insert_cnt = 0
+rej_cnt = 0
+current_time_stamp = None
+
 
 def reset_monitor_vars():
-    global row_speed, insert_speed, rej_speed, row_cnt, insert_cnt, rej_cnt, current_time_stamp,monitor_times
+    global row_speed, insert_speed, rej_speed, row_cnt, insert_cnt, rej_cnt, current_time_stamp, monitor_times
     row_speed = []
     insert_speed = []
     rej_speed = []
@@ -94,11 +93,12 @@ def reset_monitor_vars():
     insert_cnt = 0
     rej_cnt = 0
     current_time_stamp = datetime.datetime.now()
-#todo add a variant that runs regardless of the time difference to account foor the last set of inserts and whatnot
-def monitor_func(force_monitor=False):
-    global row_speed, insert_speed, rej_speed, row_cnt, insert_cnt, rej_cnt, current_time_stamp,monitor_times
-    if (datetime.datetime.now() - current_time_stamp).total_seconds() >= 1 or force_monitor:
 
+
+# todo add a variant that runs regardless of the time difference to account foor the last set of inserts and whatnot
+def monitor_func(force_monitor=False):
+    global row_speed, insert_speed, rej_speed, row_cnt, insert_cnt, rej_cnt, current_time_stamp, monitor_times
+    if (datetime.datetime.now() - current_time_stamp).total_seconds() >= 1 or force_monitor:
         row_speed.append(row_cnt)
         insert_speed.append(insert_cnt)
         rej_speed.append(rej_cnt)
@@ -109,62 +109,66 @@ def monitor_func(force_monitor=False):
         rej_cnt = 0
         pass
 
+
 def monitor_output():
     global row_speed, insert_speed, rej_speed, monitor_times
-    row_total=0
-    ins_total=0
-    rej_total=0
-    row_time=0
-    ins_time=0
-    rej_time=0
-    for (row,ins,rej,time) in zip(row_speed,insert_speed,rej_speed,monitor_times):
-        if (rej!=0):
+    row_total = 0
+    ins_total = 0
+    rej_total = 0
+    row_time = 0
+    ins_time = 0
+    rej_time = 0
+    for (row, ins, rej, time) in zip(row_speed, insert_speed, rej_speed, monitor_times):
+        if rej != 0:
             rej_total += rej
             rej_time += time
-        if (ins!=0):
+        if ins != 0:
             ins_total += ins
             ins_time += time
         row_total += row
-        row_time +=time
-    if (row_time!=0):
-        print("Row Stats\nTotal:{}\nTime:{}\nAverage(per second):{}\n".format(row_total,row_time,row_total/row_time))
+        row_time += time
+    if row_time != 0:
+        print(
+            "Row Stats\nTotal:{}\nTime:{}\nAverage(per second):{}\n".format(row_total, row_time, row_total / row_time))
     else:
         print("No complete rows were inserted")
-    if (ins_time!=0):
-        print("Insert Stats\nTotal:{}\nTime:{}\nAverage(per second):{}\n".format(ins_total,ins_time,ins_total/ins_time))
+    if ins_time != 0:
+        print("Insert Stats\nTotal:{}\nTime:{}\nAverage(per second):{}\n".format(ins_total, ins_time,
+                                                                                 ins_total / ins_time))
     else:
         print("No inserted data")
-    if (rej_time!=0):
-        print("Reject Stats\nTotal:{}\nTime:{}\nAverage(per second):{}\n\n".format(rej_total,rej_time,rej_total/rej_time))
+    if rej_time != 0:
+        print("Reject Stats\nTotal:{}\nTime:{}\nAverage(per second):{}\n\n".format(rej_total, rej_time,
+                                                                                   rej_total / rej_time))
     else:
         print("No rejected data")
 
-
     pass
+
 
 def process_rows(conn, cur, schemas, df):
     global row_cnt, current_time_stamp
     reset_monitor_vars()
     for row_dict in df.to_dict(orient="records"):
         process_row(conn, cur, schemas, row_dict)
-        row_cnt +=1
+        row_cnt += 1
         monitor_func()
         conn.commit()
-    if (row_cnt!=0):
+    if (row_cnt != 0):
         monitor_func(True)
     monitor_output()
     pass
 
-def process_row(conn, cur, schemas, data: dict):
 
+def process_row(conn, cur, schemas, data: dict):
     for entry in schemas:
         for schema in entry.values():
             name = schema['name']
             types = schema['attributes'].values()
             new_data = {}
-            if ('attr_name_map' in schema.keys()):
+            if 'attr_name_map' in schema.keys():
                 for attr in schema['attributes'].keys():
-                    if (attr in schema['attr_name_map']):
+                    if attr in schema['attr_name_map']:
                         new_data[attr] = (data.get(schema['attr_name_map'][attr]))
                     else:
                         new_data[attr] = data.get(attr)
@@ -175,12 +179,13 @@ def process_row(conn, cur, schemas, data: dict):
                     pass
 
             func_name = str(name)
-            if (func_name in ['drug_class', 'drug_units','drug_substance','drug_administration', 'drug_side_effects','drug_uses']):
+            if (func_name in ['drug_class', 'drug_units', 'drug_substance', 'drug_administration', 'drug_side_effects',
+                              'drug_uses']):
 
                 func_name = func_name.__add__('_helper')
             else:
                 func_name = 'standard_helper'
-            if (func_name in globals()):
+            if func_name in globals():
                 func = globals()[func_name]
                 func(conn, cur, schema['target_table'], new_data, schema['pk'], types)
             """
@@ -197,8 +202,8 @@ def standard_helper(conn, cur, table_name, data: dict, pk, types):
     upsert_into_table(conn, cur, table_name, list(data.values()), data.keys(), pk, types)
     pass
 
-def drug_uses_helper(conn, cur, table_name, data: dict, pk, types):
 
+def drug_uses_helper(conn, cur, table_name, data: dict, pk, types):
     for use in data['use']:
         query_data = list()
         for n in data.keys():
@@ -208,6 +213,8 @@ def drug_uses_helper(conn, cur, table_name, data: dict, pk, types):
                 query_data.append(use)
         upsert_into_table(conn, cur, table_name, query_data, data.keys(), pk, types)
     pass
+
+
 def drug_side_effects_helper(conn, cur, table_name, data: dict, pk, types):
     for effect in data['side_effect']:
         query_data = list()
@@ -219,11 +226,9 @@ def drug_side_effects_helper(conn, cur, table_name, data: dict, pk, types):
         upsert_into_table(conn, cur, table_name, query_data, data.keys(), pk, types)
 
 
-
-
 def drug_class_helper(conn, cur, table_name, data: dict, pk, types):
-    pharm_classes=[""]
-    if (type(data['PHARM_CLASS']) is float):
+    pharm_classes = [""]
+    if type(data['PHARM_CLASS']) is float:
         if not math.isnan(data['PHARM_CLASS']):
             pharm_classes = data['PHARM_CLASS'].split(',')
     for pc in pharm_classes:
@@ -239,24 +244,26 @@ def drug_class_helper(conn, cur, table_name, data: dict, pk, types):
     pass
 
 
-#NOTE: strength and unit arent always the same size. need to rework this as a result
-#figure out what to do since strength and unit can be blank
-#i could discard rows for that, and use it as proof of rejection table working
-#strength cnt >=unit cnt
+# NOTE: strength and unit arent always the same size. need to rework this as a result
+# figure out what to do since strength and unit can be blank
+# i could discard rows for that, and use it as proof of rejection table working
+# strength cnt >=unit cnt
 '''
 there must be 3 situations
 1. strength cnt=unit cnt, single
 2. strength cnt=unit cnt, multiple
 3. strength cnt: multiple, unit cnt=1
 '''
-unit_counter=0
+unit_counter = 0
+
+
 def drug_units_helper(conn, cur, table_name, data: dict, pk, types):
     global unit_counter
     strength = [None]
     units = [""]
-    #print("UNITS   ",data['STRENGTH'],data['UNIT'])
+    # print("UNITS   ",data['STRENGTH'],data['UNIT'])
 
-    if (type(data['STRENGTH']) is float):
+    if type(data['STRENGTH']) is float:
         if not math.isnan(data['STRENGTH']):
             strength = data['STRENGTH'].split(';')
             units = data['UNIT'].split(';')
@@ -266,7 +273,7 @@ def drug_units_helper(conn, cur, table_name, data: dict, pk, types):
         strength = data['STRENGTH'].split(';')
         units = data['UNIT'].split(';')
 
-    if (strength.__sizeof__()==units.__sizeof__()):
+    if strength.__sizeof__() == units.__sizeof__():
         for s, u in zip(strength, units):
             query_data = list()
 
@@ -281,7 +288,7 @@ def drug_units_helper(conn, cur, table_name, data: dict, pk, types):
                 else:
                     query_data.append(u.strip())
             upsert_into_table(conn, cur, table_name, query_data, data.keys(), pk, types)
-    elif (strength.__sizeof__()>units.__sizeof__() and units.__sizeof__()==1):
+    elif strength.__sizeof__() > units.__sizeof__() and units.__sizeof__() == 1:
         u = units[0]
         for s in strength:
 
@@ -300,12 +307,12 @@ def drug_units_helper(conn, cur, table_name, data: dict, pk, types):
 
 
 def drug_substance_helper(conn, cur, table_name, data: dict, pk, types):
-    substances=[""]
+    substances = [""]
     if (type(data['SUBSTANCENAME']) is float):
         if not math.isnan(data['SUBSTANCENAME']):
-            substances=data['SUBSTANCENAME'].split(';')
+            substances = data['SUBSTANCENAME'].split(';')
     for substance in substances:
-        query_data=list()
+        query_data = list()
         for n in data.keys():
             if n not in ['SUBSTANCENAME']:
                 query_data.append(data[n])
@@ -315,9 +322,8 @@ def drug_substance_helper(conn, cur, table_name, data: dict, pk, types):
     pass
 
 
-
 def drug_administration_helper(conn, cur, table_name, data: dict, pk, types):
-    routes=[""]
+    routes = [""]
     if (type(data['ROUTENAME']) is float):
         if not math.isnan(data['ROUTENAME']):
             routes = data['ROUTENAME'].split(';')
@@ -343,8 +349,8 @@ def pk_constraint(pk):
     rule = rule + ")"
     return rule
 
-def create_table(cur, table_name, fields, data_types, constraints):
 
+def create_table(cur, table_name, fields, data_types, constraints):
     attributes = [sql.SQL("{} {}").format(
         sql.SQL(c_name),
         sql.SQL(datatype_converter[c_type])
@@ -365,9 +371,9 @@ def create_table(cur, table_name, fields, data_types, constraints):
         pass
 
 
-def upsert_into_table(conn,cur, table_name, data, schema, primary_key,types):
-    global rejected_data, insert_cnt,rej_cnt
-    data=preprocess_data(data,types)
+def upsert_into_table(conn, cur, table_name, data, schema, primary_key, types):
+    global rejected_data, insert_cnt, rej_cnt
+    data = preprocess_data(data, types)
     query = sql.SQL('INSERT INTO {name} ({fields})VALUES ({vals}) ON CONFLICT ({pk}) DO UPDATE SET {setter}').format(
         name=sql.Identifier(table_name),
         fields=sql.SQL(',').join(
@@ -388,25 +394,31 @@ def upsert_into_table(conn,cur, table_name, data, schema, primary_key,types):
 
     )
     try:
-        if (table_name == 'rejected_data'):
-            # print(data)
-            pass
+
         cur.execute(query, data)
         insert_cnt += 1
-        #print("Success insert into table".__add__(table_name))
+        if table_name == 'rejected_data':
+            # print(data)
+            #print("REJ SUCC")
+            pass
+        # print("Success insert into table".__add__(table_name))
 
     except psycopg2.Error as e:
-        #print("FAILED INSERT int table ".__add__(table_name))
-        #print(data)
-        #print(e)
+        # print("FAILED INSERT in table ".__add__(table_name))
+        # print(data)
+        # print(e)
         conn.rollback()
 
-        if (table_name!='rejected_data'):
-            rejected_data.append(Reject(table_name, data, datetime.datetime.now(), str(e)))
-            rej_cnt+=1
+        if table_name != 'rejected_data':
+            time =datetime.datetime.now()
+            rejected_data.append(Reject(table_name, data.__str__(), datetime.datetime.now(), str(e)))
+            rej_cnt += 1
+        else:
+            print("failed to put in rejects")
     finally:
         monitor_func()
     return
+
 
 def preprocess_data(data, types):
     new_data = []
@@ -424,6 +436,8 @@ def preprocess_data(data, types):
                 d = None
         new_data.append(d)
     return new_data
+
+
 def get_from_table(table_name, str_query):
     query = table_name + str_query
     print(query)
@@ -438,20 +452,23 @@ def drop_table(cur, table_name):
     return
 
 
-def create_reject_table( cur):
+def create_reject_table(cur):
     # have a pk that is auto assigned
     create_table(cur, 'rejected_data', ['col_id', 'table_name', 'data', 'time', 'reason'],
                  ['serial', 'str', 'str', 'datetime', 'str'], [pk_constraint(['col_id'])])
 
 
-def put_in_reject_table(conn,cur):
+def put_in_reject_table(conn, cur):
     for data in rejected_data:
         data_list = [data.table, data.data, data.time, data.reason]
-        upsert_into_table(conn, cur, 'rejected_data', data_list, ['table_name', 'data', 'time', 'reason'], ['col_id'],['str', 'str', 'datetime', 'str'])
+        upsert_into_table(conn, cur, 'rejected_data', data_list, ['table_name', 'data', 'time', 'reason'], ['col_id'],
+                          ['str', 'str', 'datetime', 'str'])
     return
 
-#conn,cur, table_name, data, schema, primary_key,types
-def is_company_likely_to_make(cur, drug_table,drug_company,drug_class, company_col_name, drug_col_name, company_name, drug_name):
+
+# conn,cur, table_name, data, schema, primary_key,types
+def is_company_likely_to_make(cur, drug_table, drug_company, drug_class, company_col_name, drug_col_name, company_name,
+                              drug_name):
     """
     Process:
     -see if company is already making drug_name (generic)
@@ -466,8 +483,8 @@ def is_company_likely_to_make(cur, drug_table,drug_company,drug_class, company_c
         )
     )
     """
-    query=(sql.SQL('SELECT * FROM {name} WHERE {c_col} = {c_name} AND {d_col} = {d_name}')
-           .format(
+    query = (sql.SQL('SELECT * FROM {name} WHERE {c_col} = {c_name} AND {d_col} = {d_name}')
+    .format(
         name=sql.Identifier(drug_table),
         c_col=sql.Identifier(company_col_name),
         c_name=sql.Identifier(company_name),
@@ -483,10 +500,10 @@ def is_company_likely_to_make(cur, drug_table,drug_company,drug_class, company_c
         (d4) count(prod_id) drug_company where company=""
     '''
     cur.execute(query)
-    results=cur.fetchall()
+    results = cur.fetchall()
     if not results:
         print("Company has not produced this drug yet.")
-        query=sql.SQL('SELECT COUNT({p_col}) FROM {name} WHERE {c_col}={c_name}').format(
+        query = sql.SQL('SELECT COUNT({p_col}) FROM {name} WHERE {c_col}={c_name}').format(
             p_col=sql.Identifier(""),
             name=sql.Identifier(drug_table),
             c_col=sql.Identifier(company_col_name),
@@ -501,23 +518,25 @@ def is_company_likely_to_make(cur, drug_table,drug_company,drug_class, company_c
         pass
     return
 
-#https://pandas.pydata.org/docs/reference/api/pandas.read_sql_query.html
-#https://stackoverflow.com/questions/24408557/pandas-read-sql-with-parameters
+
+# https://pandas.pydata.org/docs/reference/api/pandas.read_sql_query.html
+# https://stackoverflow.com/questions/24408557/pandas-read-sql-with-parameters
 def get_side_effect_from_brand_name(cur, brand_name):
-    query=sql.SQL('SELECT NONPROPRIETARYNAME FROM drug_alias JOIN drug_table on drug_alias.PRODUCTID=drug_table.PRODUCTID WHERE LOWER(PROPRIETARYNAME)={name}').format(
+    query = sql.SQL(
+        'SELECT NONPROPRIETARYNAME FROM drug_alias JOIN drug_table on drug_alias.PRODUCTID=drug_table.PRODUCTID WHERE LOWER(PROPRIETARYNAME)={name}').format(
         name=sql.Placeholder("name")
     )
     try:
-        cur.execute(query,{"name":brand_name.lower()})
-        fetched_data=cur.fetchone()
+        cur.execute(query, {"name": brand_name.lower()})
+        fetched_data = cur.fetchone()
         if fetched_data is not None and fetched_data is not []:
-            generic_name=fetched_data[0]
-            query=sql.SQL('SELECT side_effect FROM drug_side_effects WHERE LOWER(medicine_name)={name}').format(
+            generic_name = fetched_data[0]
+            query = sql.SQL('SELECT side_effect FROM drug_side_effects WHERE LOWER(medicine_name)={name}').format(
                 name=sql.Placeholder("name")
             )
             try:
-                cur.execute(query,{"name":generic_name.lower()})
-                side_effects=cur.fetchall()
+                cur.execute(query, {"name": generic_name.lower()})
+                side_effects = cur.fetchall()
                 print(side_effects)
                 if side_effects is not []:
                     print("The drug has the following side effects:")
@@ -535,9 +554,10 @@ def get_side_effect_from_brand_name(cur, brand_name):
                 name=sql.Placeholder("name")
             )
             try:
-                cur.execute(query,{"name":brand_name.lower()})
-                if (cur.fetchone() is not  None and fetched_data is not []):
-                    query = sql.SQL('SELECT side_effect FROM drug_side_effects WHERE LOWER(medicine_name)={name}').format(
+                cur.execute(query, {"name": brand_name.lower()})
+                if (cur.fetchone() is not None and fetched_data is not []):
+                    query = sql.SQL(
+                        'SELECT side_effect FROM drug_side_effects WHERE LOWER(medicine_name)={name}').format(
                         name=sql.Placeholder("name")
                     )
                     try:
@@ -566,11 +586,14 @@ def get_side_effect_from_brand_name(cur, brand_name):
         pass
     pass
 
-def get_uses_from_name(cur,name):
+
+def get_uses_from_name(cur, name):
     pass
 
-def get_medicine_for_condition(cur,condition):
+
+def get_medicine_for_condition(cur, condition):
     pass
 
-def does_company_make_drug_for_condition(cur,company,condition):
+
+def does_company_make_drug_for_condition(cur, company, condition):
     pass
