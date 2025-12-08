@@ -19,6 +19,7 @@ Data Sources are defined as such in the config
   - rules:
 
 Features
+- Supports reading from csv and json files
 - Stores db credentials in local env file for extra security
 - Logs info regarding processing speed of inserts
 - Some basic built in queries to retrieve data

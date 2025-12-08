@@ -204,6 +204,7 @@ def standard_helper(conn, cur, table_name, data: dict, pk, types):
 
 
 def drug_uses_helper(conn, cur, table_name, data: dict, pk, types):
+
     for use in data['use']:
         query_data = list()
         for n in data.keys():
@@ -211,6 +212,9 @@ def drug_uses_helper(conn, cur, table_name, data: dict, pk, types):
                 query_data.append(data[n])
             else:
                 query_data.append(use)
+        if (data['medicine_name']=='Levocetirizine'):
+            print("DRUG USES")
+            print(query_data)
         upsert_into_table(conn, cur, table_name, query_data, data.keys(), pk, types)
     pass
 
@@ -373,6 +377,7 @@ def create_table(cur, table_name, fields, data_types, constraints):
 
 def upsert_into_table(conn, cur, table_name, data, schema, primary_key, types):
     global rejected_data, insert_cnt, rej_cnt
+    print_bool=False
     data = preprocess_data(data, types)
     query = sql.SQL('INSERT INTO {name} ({fields})VALUES ({vals}) ON CONFLICT ({pk}) DO UPDATE SET {setter}').format(
         name=sql.Identifier(table_name),
@@ -397,6 +402,10 @@ def upsert_into_table(conn, cur, table_name, data, schema, primary_key, types):
 
         cur.execute(query, data)
         insert_cnt += 1
+        if print_bool:
+            #final_sql = cur.mogrify(query.as_string(conn), data)
+            #print(final_sql)
+            pass
         if table_name == 'rejected_data':
             # print(data)
             #print("REJ SUCC")
@@ -537,11 +546,10 @@ def get_side_effect_from_brand_name(cur, brand_name):
             try:
                 cur.execute(query, {"name": generic_name.lower()})
                 side_effects = cur.fetchall()
-                print(side_effects)
                 if side_effects is not []:
                     print("The drug has the following side effects:")
                     for side_effect in side_effects:
-                        print(side_effect)
+                        print(side_effect[0])
                 else:
                     print("No side effects for this drug are recorded in this dataset")
             except Exception as e:
@@ -555,7 +563,8 @@ def get_side_effect_from_brand_name(cur, brand_name):
             )
             try:
                 cur.execute(query, {"name": brand_name.lower()})
-                if (cur.fetchone() is not None and fetched_data is not []):
+                fetched_data=cur.fetchone()
+                if fetched_data is not None and fetched_data is not []:
                     query = sql.SQL(
                         'SELECT side_effect FROM drug_side_effects WHERE LOWER(medicine_name)={name}').format(
                         name=sql.Placeholder("name")
@@ -563,11 +572,10 @@ def get_side_effect_from_brand_name(cur, brand_name):
                     try:
                         cur.execute(query, {"name": brand_name.lower()})
                         side_effects = cur.fetchall()
-                        print(side_effects)
                         if side_effects is not []:
                             print("The drug has the following side effects:")
                             for side_effect in side_effects:
-                                print(side_effect)
+                                print(side_effect[0])
                         else:
                             print("No side effects for this drug are recorded in this dataset")
                     except Exception as e:
@@ -592,8 +600,58 @@ def get_uses_from_name(cur, name):
 
 
 def get_medicine_for_condition(cur, condition):
+    query=sql.SQL("SELECT medicine_name FROM drug_uses WHERE use={cond}").format(
+        cond=sql.Placeholder("cond")
+    )
+    try:
+        cur.execute(query,{"cond":condition})
+        generics = cur.fetchall()  # keep in mind the medicine names are generic names
+        if generics is not None and generics:
+            print("Found the following drugs for ",condition)
+            for g in generics:
+                print(g[0])
+    except Exception as e:
+        pass
     pass
 
 
 def does_company_make_drug_for_condition(cur, company, condition):
+    comp_list=[]
+    query=sql.SQL("SELECT medicine_name FROM drug_uses WHERE use={cond}").format(
+        cond=sql.Placeholder("cond")
+    )
+    try:
+        cur.execute(query,{"cond":condition})
+        generics=cur.fetchall()# keep in mind the medicine names are generic names
+        if generics is not None and generics:
+            for generic_name in generics:
+                '''
+                SELECT * FROM drug_company JOIN drug_alias ON drug_company.PRODUCTID=drug_alias.PRODUCTID
+                '''
+                query=sql.SQL('SELECT PROPRIETARYNAME FROM drug_company JOIN drug_alias ON '
+                              'drug_company.PRODUCTID=drug_alias.PRODUCTID  JOIN drug_table ON drug_company.productid = drug_table.productid WHERE LOWER(drug_alias.NONPROPRIETARYNAME)={name} AND LOWER(labelername)={comp}').format(name=sql.Placeholder("name"),comp=sql.Placeholder("comp"))
+                
+                
+
+                try:
+                    cur.execute(query,{"name":generic_name[0].lower(),"comp":company.lower()})
+                    join=cur.fetchall()
+                    if join is not None and join:
+                        for j in join:
+                            comp_list.append(j[0])
+                            pass
+                    #product_ids
+                    pass
+                except Exception as e:
+                    print(e)
+                    pass
+                pass
+    except Exception as e:
+        print(e)
+        pass
+    finally:
+        if comp_list:
+            print(company, "produces these drugs for", condition)
+            for c in comp_list:
+                print(c)
     pass

@@ -1,7 +1,5 @@
-# This is a sample Python script.
 from src import global_vars
 from src import config
-import pytest
 from readers.json_reader import read_json
 from readers.csv_reader import read_csv
 import psycopg2
@@ -19,7 +17,7 @@ def read_from_source(conn, cur,sources):
         file_type = str.lower(source['type'])
 
         if file_type == 'csv':
-            read_csv(conn, cur, source)
+            #read_csv(conn, cur, source)
             pass
         elif file_type == "json":
             read_json(conn, cur, source)
@@ -49,9 +47,13 @@ if __name__ == '__main__':
     db_manager.create_reject_table(cur)
     read_from_source(conn, cur,sources)
     db_manager.put_in_reject_table(conn,cur)
-    db_manager.get_side_effect_from_brand_name(cur,'Paliperidone')
+
+    #db_manager.get_side_effect_from_brand_name(cur,'Paliperidone')
+
+    #db_manager.get_side_effect_from_brand_name(cur,'Paliperidonedas')
     print("BREAK")
-    db_manager.get_side_effect_from_brand_name(cur,'Paliperidonedas')
+    #db_manager.get_medicine_for_condition(cur,"Allergies")
+    #db_manager.does_company_make_drug_for_condition(cur,'Apotex Corp.','Allergies')#Apotex Corp
     conn.commit()
     conn.close()
 
