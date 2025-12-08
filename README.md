@@ -1,11 +1,6 @@
 Python project that reads data from various sources
 and uploads it to a local PostgresSQL database.
 
-One of the main focuses of this project was to delve into dynamic
-class creation via the type() method.
-As such, this project serves as a "master" controller,
-being able to dynamically define tables using the config file.
-
 Data Sources are defined as such in the config
   - name(generic name for the data): 
   - type(the way data is stored): 
@@ -22,3 +17,8 @@ Data Sources are defined as such in the config
         - first_name: 'CHECK (LENGTH(first_name)>0)'
   - data_types:
   - rules:
+
+Features
+- Stores db credentials in local env file for extra security
+- Logs info regarding processing speed of inserts
+- Some basic built in queries to retrieve data
