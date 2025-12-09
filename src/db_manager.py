@@ -351,7 +351,7 @@ def pk_constraint(pk):
     return rule
 
 
-def create_table(cur, table_name, fields, data_types, constraints,pk):#constraints is now a dict with column:rule pairs, move pk to aseparate field
+def create_table(cur, table_name, fields, data_types, constraints,pk,outer):#constraints is now a dict with column:rule pairs, move pk to aseparate field
     inline_constraints={}
     end_constraints=[]
     if constraints is not None:
@@ -373,12 +373,15 @@ def create_table(cur, table_name, fields, data_types, constraints,pk):#constrain
     if pk is not None:
         attributes.append(sql.SQL(pk))
     attributes.extend(sql.SQL(c) for c in end_constraints)
-    query = sql.SQL('CREATE TABLE IF NOT EXISTS {name} ({attr})').format(
+    query = sql.SQL('CREATE TABLE IF NOT EXISTS {name} ({attr}) {out}').format(
         name=sql.Identifier(table_name),
         attr=sql.SQL(',').join(
             attributes
-        )
+        ),
+        out=sql.SQL(outer)
     )
+    #print(outer)
+    print(query.as_string(cur))
     try:
         cur.execute(query)
     except Exception as e:
@@ -475,7 +478,7 @@ def drop_table(cur, table_name):
 def create_reject_table(cur):
     # have a pk that is auto assigned
     create_table(cur, 'rejected_data', ['col_id', 'table_name', 'data', 'time', 'reason'],
-                 ['serial', 'str', 'str', 'datetime', 'str'], None,[pk_constraint(['col_id'])])
+                 ['serial', 'str', 'str', 'datetime', 'str'], None,pk_constraint(['col_id']),'')
 
 
 def put_in_reject_table(conn, cur):

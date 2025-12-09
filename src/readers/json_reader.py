@@ -14,8 +14,11 @@ def read_json(conn, cur, source):
         for schema in s.values():
             rules = schema['rules']
             table_name = schema['target_table']
+            outer=''
+            if ('outer' in schema):
+                outer=schema['outer']
             db_manager.create_table(cur, table_name, list(schema['attributes'].keys()),
-                                    list(schema['attributes'].values()), rules, db_manager.pk_constraint(schema['pk']))
+                                    list(schema['attributes'].values()), rules, db_manager.pk_constraint(schema['pk']),outer)
             conn.commit()
     if Path(file_path).exists():
         df = pd.read_json(file_path, lines=file_path.endswith(".jsonl"))

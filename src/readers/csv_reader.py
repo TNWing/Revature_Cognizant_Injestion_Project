@@ -13,7 +13,10 @@ def read_csv(conn, cur, source):
         for schema in s.values():
             rules = schema['rules']
             table_name = schema['target_table']
-            db_manager.create_table(cur, table_name, list(schema['attributes'].keys()), list(schema['attributes'].values()), rules,db_manager.pk_constraint(schema['pk']))
+            outer=''
+            if ('outer' in schema):
+                outer=schema['outer']
+            db_manager.create_table(cur, table_name, list(schema['attributes'].keys()), list(schema['attributes'].values()), rules,db_manager.pk_constraint(schema['pk']),outer)
             conn.commit()
     if Path(file_path).exists():
         df = pd.read_csv(file_path, na_values=[""],

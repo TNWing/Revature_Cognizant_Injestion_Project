@@ -20,7 +20,7 @@ def read_from_source(conn, cur, sources):
             read_csv(conn, cur, source)
             pass
         elif file_type == "json":
-            #read_json(conn, cur, source)
+            read_json(conn, cur, source)
             pass
         else:
             print("Invalid file type found {}".format(file_type))
@@ -42,7 +42,7 @@ if __name__ == '__main__':
 
     cur = conn.cursor()
 
-    #db_manager.create_reject_table(cur)
+    db_manager.create_reject_table(cur)
     read_from_source(conn, cur, sources)
     db_manager.put_in_reject_table(conn, cur)
 

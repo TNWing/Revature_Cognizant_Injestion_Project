@@ -25,3 +25,4 @@ Features
 - Stores db credentials in local env file for extra security
 - Logs info regarding processing speed of inserts
 - Some basic built in queries to retrieve data
+- Partitioned tables to improve efficiency
