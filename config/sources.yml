@@ -22,6 +22,9 @@ sources:
             PROPRIETARYNAMESUFFIX: str
             DEASCHEDULE : str
           rules:
+            -PRODUCTNDC: NOT NULL
+            -PROPRIETARYNAME: NOT NULL
+            -PRODUCTTYPENAME: NOT NULL
       - schema:
           name : drug_class
           target_table: drug_classes
@@ -32,7 +35,7 @@ sources:
           attr_name_map:
             PHARM_CLASS : PHARM_CLASSES
           rules:
-            - PRODUCTID : FOREIGN KEY (PRODUCTID) REFERENCES drug_table(PRODUCTID)
+            - PRODUCTID : REFERENCES drug_table(PRODUCTID)
       - schema:
           name : drug_substance
           target_table : drug_substances
@@ -41,7 +44,7 @@ sources:
             SUBSTANCENAME: str
             PRODUCTID: str
           rules:
-            - PRODUCTID: FOREIGN KEY (PRODUCTID) REFERENCES drug_table(PRODUCTID)
+            - PRODUCTID: REFERENCES drug_table(PRODUCTID)
       - schema:
           name : drug_administration
           target_table: drug_administration_method
@@ -51,7 +54,7 @@ sources:
             ROUTENAME: str
             PRODUCTID: str
           rules:
-            - PRODUCTID: FOREIGN KEY (PRODUCTID) REFERENCES drug_table(PRODUCTID)
+            - PRODUCTID: REFERENCES drug_table(PRODUCTID)
       - schema:
           name : drug_units
           target_table: drug_administration_units
@@ -64,7 +67,7 @@ sources:
             STRENGTH : ACTIVE_NUMERATOR_STRENGTH
             UNIT : ACTIVE_INGRED_UNIT
           rules:
-            - PRODUCTID: FOREIGN KEY (PRODUCTID) REFERENCES drug_table(PRODUCTID)
+            - PRODUCTID: REFERENCES drug_table(PRODUCTID)
           links:
             -STRENGTH : UNIT
       - schema:
@@ -75,7 +78,7 @@ sources:
             NONPROPRIETARYNAME : str
             PRODUCTID: str
           rules:
-            - PRODUCTID: FOREIGN KEY (PRODUCTID) REFERENCES drug_table(PRODUCTID)
+            - PRODUCTID: REFERENCES drug_table(PRODUCTID)
       - schema:
           name : drug_company
           target_table: drug_company
@@ -88,7 +91,10 @@ sources:
             LABELERNAME: str
             PRODUCTID: str
           rules:
-            - PRODUCTID: FOREIGN KEY (PRODUCTID) REFERENCES drug_table(PRODUCTID)
+            - PRODUCTID:  REFERENCES drug_table(PRODUCTID)
+            - STARTMARKETINGDATE: NOT NULL
+            - APPLICATIONNUMBER : UNIQUE NOT NULL
+            - LABELERNAME: NOT NULL
     data_types:
       PRODUCTID: str
       PRODUCTNDC : str

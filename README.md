@@ -17,6 +17,8 @@ Data Sources are defined as such in the config
         - first_name: 'CHECK (LENGTH(first_name)>0)'
   - data_types:
   - rules:
+    - Attribute_Name : INLINE Rule (NOT NULL, UNIQUE, etc)
+    - None : End of attribute rule (Foreign key, check, etc)
 
 Features
 - Supports reading from csv and json files

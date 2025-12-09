@@ -11,29 +11,27 @@ from dotenv import load_dotenv
 global_vars.PARENT_DIR = Path(__file__).resolve().parent.parent
 
 
-def read_from_source(conn, cur,sources):
+def read_from_source(conn, cur, sources):
     for source in sources:
 
         file_type = str.lower(source['type'])
 
         if file_type == 'csv':
-            #read_csv(conn, cur, source)
+            read_csv(conn, cur, source)
             pass
         elif file_type == "json":
-            read_json(conn, cur, source)
+            #read_json(conn, cur, source)
             pass
         else:
             print("Invalid file type found {}".format(file_type))
     return
 
 
-
 if __name__ == '__main__':
-
-    sources=config.read_config()
+    sources = config.read_config()
 
     load_dotenv()
-    
+
     conn = psycopg2.connect(
         dbname=os.getenv('DB_NAME'),
         user=os.getenv('DB_USER'),
@@ -44,16 +42,14 @@ if __name__ == '__main__':
 
     cur = conn.cursor()
 
-    db_manager.create_reject_table(cur)
-    read_from_source(conn, cur,sources)
-    db_manager.put_in_reject_table(conn,cur)
+    #db_manager.create_reject_table(cur)
+    read_from_source(conn, cur, sources)
+    db_manager.put_in_reject_table(conn, cur)
 
-    #db_manager.get_side_effect_from_brand_name(cur,'Paliperidone')
+    # db_manager.get_side_effect_from_brand_name(cur,'Paliperidone')
 
-    #db_manager.get_side_effect_from_brand_name(cur,'Paliperidonedas')
-    print("BREAK")
-    #db_manager.get_medicine_for_condition(cur,"Allergies")
-    #db_manager.does_company_make_drug_for_condition(cur,'Apotex Corp.','Allergies')#Apotex Corp
+    # db_manager.get_side_effect_from_brand_name(cur,'Paliperidonedas')
+    # db_manager.get_medicine_for_condition(cur,"Allergies")
+    # db_manager.does_company_make_drug_for_condition(cur,'Apotex Corp.','Allergies')#Apotex Corp
     conn.commit()
     conn.close()
-

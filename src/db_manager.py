@@ -68,6 +68,7 @@ class Reject:
         if time is None:
             print("Why is time none")
 
+
 rejected_data = []
 '''
 Monitoring 	Track load metrics (rows/sec, rejects/sec) and log to a dashboard.
@@ -95,7 +96,6 @@ def reset_monitor_vars():
     current_time_stamp = datetime.datetime.now()
 
 
-# todo add a variant that runs regardless of the time difference to account foor the last set of inserts and whatnot
 def monitor_func(force_monitor=False):
     global row_speed, insert_speed, rej_speed, row_cnt, insert_cnt, rej_cnt, current_time_stamp, monitor_times
     if (datetime.datetime.now() - current_time_stamp).total_seconds() >= 1 or force_monitor:
@@ -179,6 +179,8 @@ def process_row(conn, cur, schemas, data: dict):
                     pass
 
             func_name = str(name)
+            # need to clean company data since sometimes there are slight variations in the company
+            # ex: A Corp vs A Corp. is the same thing, but are considered separate companies due to the period
             if (func_name in ['drug_class', 'drug_units', 'drug_substance', 'drug_administration', 'drug_side_effects',
                               'drug_uses']):
 
@@ -204,7 +206,6 @@ def standard_helper(conn, cur, table_name, data: dict, pk, types):
 
 
 def drug_uses_helper(conn, cur, table_name, data: dict, pk, types):
-
     for use in data['use']:
         query_data = list()
         for n in data.keys():
@@ -212,9 +213,6 @@ def drug_uses_helper(conn, cur, table_name, data: dict, pk, types):
                 query_data.append(data[n])
             else:
                 query_data.append(use)
-        if (data['medicine_name']=='Levocetirizine'):
-            print("DRUG USES")
-            print(query_data)
         upsert_into_table(conn, cur, table_name, query_data, data.keys(), pk, types)
     pass
 
@@ -265,7 +263,6 @@ def drug_units_helper(conn, cur, table_name, data: dict, pk, types):
     global unit_counter
     strength = [None]
     units = [""]
-    # print("UNITS   ",data['STRENGTH'],data['UNIT'])
 
     if type(data['STRENGTH']) is float:
         if not math.isnan(data['STRENGTH']):
@@ -292,7 +289,7 @@ def drug_units_helper(conn, cur, table_name, data: dict, pk, types):
                 else:
                     query_data.append(u.strip())
             upsert_into_table(conn, cur, table_name, query_data, data.keys(), pk, types)
-    elif strength.__sizeof__() > units.__sizeof__() and units.__sizeof__() == 1:
+    elif strength.__sizeof__() > units.__sizeof__() == 1:
         u = units[0]
         for s in strength:
 
@@ -301,7 +298,7 @@ def drug_units_helper(conn, cur, table_name, data: dict, pk, types):
                 if n not in ['STRENGTH', 'UNIT']:
                     query_data.append(data[n])
                 elif n == 'STRENGTH':
-                    if (s is None):
+                    if s is None:
                         query_data.append(None)
                     else:
                         query_data.append(s.strip())
@@ -312,7 +309,7 @@ def drug_units_helper(conn, cur, table_name, data: dict, pk, types):
 
 def drug_substance_helper(conn, cur, table_name, data: dict, pk, types):
     substances = [""]
-    if (type(data['SUBSTANCENAME']) is float):
+    if type(data['SUBSTANCENAME']) is float:
         if not math.isnan(data['SUBSTANCENAME']):
             substances = data['SUBSTANCENAME'].split(';')
     for substance in substances:
@@ -328,7 +325,7 @@ def drug_substance_helper(conn, cur, table_name, data: dict, pk, types):
 
 def drug_administration_helper(conn, cur, table_name, data: dict, pk, types):
     routes = [""]
-    if (type(data['ROUTENAME']) is float):
+    if type(data['ROUTENAME']) is float:
         if not math.isnan(data['ROUTENAME']):
             routes = data['ROUTENAME'].split(';')
     else:
@@ -354,14 +351,34 @@ def pk_constraint(pk):
     return rule
 
 
-def create_table(cur, table_name, fields, data_types, constraints):
-    attributes = [sql.SQL("{} {}").format(
+def create_table(cur, table_name, fields, data_types, constraints,pk):#constraints is now a dict with column:rule pairs, move pk to aseparate field
+    print("MAKE")
+    inline_constraints={}
+    end_constraints=[]
+    if constraints is not None:
+        for r in constraints:
+            key = list(r.keys())[0]
+            val = list(r.values())[0]
+            if key == "None":
+                end_constraints.append(val)
+            else:
+                inline_constraints[key] = val
+            pass
+    else:
+        print(table_name, ' no constraints')
+
+    attributes = [sql.SQL("{} {} {}").format(
         sql.SQL(c_name),
-        sql.SQL(datatype_converter[c_type])
+        sql.SQL(datatype_converter[c_type]),
+        sql.SQL(inline_constraints.get(c_name,""))
     )
         for c_name, c_type in zip(fields, data_types)]
-    if (constraints is not None):
-        attributes.extend(sql.SQL(c) for c in constraints)
+    print("attr")
+    print(type(attributes))
+    if pk is not None:
+        attributes.append(sql.SQL(pk))
+    attributes.extend(sql.SQL(c) for c in end_constraints)
+    print(attributes)
     query = sql.SQL('CREATE TABLE IF NOT EXISTS {name} ({attr})').format(
         name=sql.Identifier(table_name),
         attr=sql.SQL(',').join(
@@ -377,7 +394,7 @@ def create_table(cur, table_name, fields, data_types, constraints):
 
 def upsert_into_table(conn, cur, table_name, data, schema, primary_key, types):
     global rejected_data, insert_cnt, rej_cnt
-    print_bool=False
+    print_bool = False
     data = preprocess_data(data, types)
     query = sql.SQL('INSERT INTO {name} ({fields})VALUES ({vals}) ON CONFLICT ({pk}) DO UPDATE SET {setter}').format(
         name=sql.Identifier(table_name),
@@ -403,12 +420,12 @@ def upsert_into_table(conn, cur, table_name, data, schema, primary_key, types):
         cur.execute(query, data)
         insert_cnt += 1
         if print_bool:
-            #final_sql = cur.mogrify(query.as_string(conn), data)
-            #print(final_sql)
+            # final_sql = cur.mogrify(query.as_string(conn), data)
+            # print(final_sql)
             pass
         if table_name == 'rejected_data':
             # print(data)
-            #print("REJ SUCC")
+            # print("REJ SUCC")
             pass
         # print("Success insert into table".__add__(table_name))
 
@@ -419,7 +436,6 @@ def upsert_into_table(conn, cur, table_name, data, schema, primary_key, types):
         conn.rollback()
 
         if table_name != 'rejected_data':
-            time =datetime.datetime.now()
             rejected_data.append(Reject(table_name, data.__str__(), datetime.datetime.now(), str(e)))
             rej_cnt += 1
         else:
@@ -441,7 +457,8 @@ def preprocess_data(data, types):
                     d = datetime.datetime.strptime(str_d, "%Y%m%d").date()
                 else:
                     d = datetime.datetime.strptime(d, "%Y%m%d")
-            except Exception:
+            except Exception as e:
+                print(e)
                 d = None
         new_data.append(d)
     return new_data
@@ -464,7 +481,7 @@ def drop_table(cur, table_name):
 def create_reject_table(cur):
     # have a pk that is auto assigned
     create_table(cur, 'rejected_data', ['col_id', 'table_name', 'data', 'time', 'reason'],
-                 ['serial', 'str', 'str', 'datetime', 'str'], [pk_constraint(['col_id'])])
+                 ['serial', 'str', 'str', 'datetime', 'str'], None,[pk_constraint(['col_id'])])
 
 
 def put_in_reject_table(conn, cur):
@@ -504,7 +521,8 @@ def is_company_likely_to_make(cur, drug_table, drug_company, drug_class, company
     select classes from drug_table join drug_classes where prodid=given id(d1)
     select drug_ids from drug_company where companyname="" (d2)
     join d2 on drug_classes (d3), select pharm_classes, count(pharm_classes) group by pharm_classes
-    count total # of drugs the company has produced, and calculate % of drugs that match at least 1 pharm class of the drug given in the params
+    count total # of drugs the company has produced, and calculate % of drugs that match at least 1 
+    pharm class of the drug given in the params
         -do this by:
         (d4) count(prod_id) drug_company where company=""
     '''
@@ -528,8 +546,6 @@ def is_company_likely_to_make(cur, drug_table, drug_company, drug_class, company
     return
 
 
-# https://pandas.pydata.org/docs/reference/api/pandas.read_sql_query.html
-# https://stackoverflow.com/questions/24408557/pandas-read-sql-with-parameters
 def get_side_effect_from_brand_name(cur, brand_name):
     query = sql.SQL(
         'SELECT NONPROPRIETARYNAME FROM drug_alias JOIN drug_table on drug_alias.PRODUCTID=drug_table.PRODUCTID WHERE LOWER(PROPRIETARYNAME)={name}').format(
@@ -563,7 +579,7 @@ def get_side_effect_from_brand_name(cur, brand_name):
             )
             try:
                 cur.execute(query, {"name": brand_name.lower()})
-                fetched_data=cur.fetchone()
+                fetched_data = cur.fetchone()
                 if fetched_data is not None and fetched_data is not []:
                     query = sql.SQL(
                         'SELECT side_effect FROM drug_side_effects WHERE LOWER(medicine_name)={name}').format(
@@ -584,6 +600,7 @@ def get_side_effect_from_brand_name(cur, brand_name):
                     print("No medicine with this name is recorded in the database.")
 
             except Exception as e:
+                print(e)
                 pass
 
 
@@ -600,47 +617,48 @@ def get_uses_from_name(cur, name):
 
 
 def get_medicine_for_condition(cur, condition):
-    query=sql.SQL("SELECT medicine_name FROM drug_uses WHERE use={cond}").format(
+    query = sql.SQL("SELECT medicine_name FROM drug_uses WHERE use={cond}").format(
         cond=sql.Placeholder("cond")
     )
     try:
-        cur.execute(query,{"cond":condition})
+        cur.execute(query, {"cond": condition})
         generics = cur.fetchall()  # keep in mind the medicine names are generic names
         if generics is not None and generics:
-            print("Found the following drugs for ",condition)
+            print("Found the following drugs for ", condition)
             for g in generics:
                 print(g[0])
+        return generics
     except Exception as e:
-        pass
-    pass
+        print(e)
+        return []
 
 
 def does_company_make_drug_for_condition(cur, company, condition):
-    comp_list=[]
-    query=sql.SQL("SELECT medicine_name FROM drug_uses WHERE use={cond}").format(
+    comp_list = []
+    query = sql.SQL("SELECT medicine_name FROM drug_uses WHERE use={cond}").format(
         cond=sql.Placeholder("cond")
     )
     try:
-        cur.execute(query,{"cond":condition})
-        generics=cur.fetchall()# keep in mind the medicine names are generic names
+        cur.execute(query, {"cond": condition})
+        generics = cur.fetchall()  # keep in mind the medicine names are generic names
         if generics is not None and generics:
             for generic_name in generics:
                 '''
                 SELECT * FROM drug_company JOIN drug_alias ON drug_company.PRODUCTID=drug_alias.PRODUCTID
                 '''
-                query=sql.SQL('SELECT PROPRIETARYNAME FROM drug_company JOIN drug_alias ON '
-                              'drug_company.PRODUCTID=drug_alias.PRODUCTID  JOIN drug_table ON drug_company.productid = drug_table.productid WHERE LOWER(drug_alias.NONPROPRIETARYNAME)={name} AND LOWER(labelername)={comp}').format(name=sql.Placeholder("name"),comp=sql.Placeholder("comp"))
-                
-                
-
+                query = (sql.SQL('SELECT PROPRIETARYNAME FROM drug_company JOIN drug_alias ON '
+                                 'drug_company.PRODUCTID=drug_alias.PRODUCTID JOIN drug_table '
+                                 'ON drug_company.productid = drug_table.productid WHERE LOWER('
+                                 'drug_alias.NONPROPRIETARYNAME)={name} AND LOWER(labelername)={comp}')
+                         .format(name=sql.Placeholder("name"), comp=sql.Placeholder("comp")))
                 try:
-                    cur.execute(query,{"name":generic_name[0].lower(),"comp":company.lower()})
-                    join=cur.fetchall()
+                    cur.execute(query, {"name": generic_name[0].lower(), "comp": company.lower()})
+                    join = cur.fetchall()
                     if join is not None and join:
                         for j in join:
                             comp_list.append(j[0])
                             pass
-                    #product_ids
+                    # product_ids
                     pass
                 except Exception as e:
                     print(e)
