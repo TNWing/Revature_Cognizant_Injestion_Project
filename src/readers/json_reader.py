@@ -20,5 +20,4 @@ def read_json(conn, cur, source):
     if Path(file_path).exists():
         df = pd.read_json(file_path, lines=file_path.endswith(".jsonl"))
         db_manager.process_rows(conn, cur, schemas, df)
-        conn.commit()
     return

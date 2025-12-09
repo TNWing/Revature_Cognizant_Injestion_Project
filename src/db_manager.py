@@ -352,7 +352,6 @@ def pk_constraint(pk):
 
 
 def create_table(cur, table_name, fields, data_types, constraints,pk):#constraints is now a dict with column:rule pairs, move pk to aseparate field
-    print("MAKE")
     inline_constraints={}
     end_constraints=[]
     if constraints is not None:
@@ -364,8 +363,6 @@ def create_table(cur, table_name, fields, data_types, constraints,pk):#constrain
             else:
                 inline_constraints[key] = val
             pass
-    else:
-        print(table_name, ' no constraints')
 
     attributes = [sql.SQL("{} {} {}").format(
         sql.SQL(c_name),
@@ -373,12 +370,9 @@ def create_table(cur, table_name, fields, data_types, constraints,pk):#constrain
         sql.SQL(inline_constraints.get(c_name,""))
     )
         for c_name, c_type in zip(fields, data_types)]
-    print("attr")
-    print(type(attributes))
     if pk is not None:
         attributes.append(sql.SQL(pk))
     attributes.extend(sql.SQL(c) for c in end_constraints)
-    print(attributes)
     query = sql.SQL('CREATE TABLE IF NOT EXISTS {name} ({attr})').format(
         name=sql.Identifier(table_name),
         attr=sql.SQL(',').join(
@@ -430,9 +424,9 @@ def upsert_into_table(conn, cur, table_name, data, schema, primary_key, types):
         # print("Success insert into table".__add__(table_name))
 
     except psycopg2.Error as e:
-        # print("FAILED INSERT in table ".__add__(table_name))
+        #print("FAILED INSERT in table ".__add__(table_name))
         # print(data)
-        # print(e)
+        #print(e)
         conn.rollback()
 
         if table_name != 'rejected_data':
@@ -440,6 +434,7 @@ def upsert_into_table(conn, cur, table_name, data, schema, primary_key, types):
             rej_cnt += 1
         else:
             print("failed to put in rejects")
+            print(e)
     finally:
         monitor_func()
     return
@@ -458,7 +453,6 @@ def preprocess_data(data, types):
                 else:
                     d = datetime.datetime.strptime(d, "%Y%m%d")
             except Exception as e:
-                print(e)
                 d = None
         new_data.append(d)
     return new_data

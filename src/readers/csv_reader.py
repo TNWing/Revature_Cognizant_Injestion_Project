@@ -7,15 +7,9 @@ from src import global_vars as globalvars
 def read_csv(conn, cur, source):
     file_path = globalvars.PARENT_DIR.__str__() + "\\" + source['path']
     schemas = source['schemas']
-    print(type(schemas))
     if type(schemas) != list:
         schemas = [schemas]
-    print(schemas)
-    print(type(schemas))
     for s in schemas:
-        print(s)
-        print(s.keys())
-        print(s.values())
         for schema in s.values():
             rules = schema['rules']
             table_name = schema['target_table']
@@ -24,9 +18,7 @@ def read_csv(conn, cur, source):
     if Path(file_path).exists():
         df = pd.read_csv(file_path, na_values=[""],
                          dtype={"STARTMARKETINGDATE": "Int64", "ENDMARKETINGDATE": "Int64"})
-        #datetime.datetime.now()
-        #move this below to db_maanger
-        #db_manager.process_rows(conn,cur, schemas, df)
+        db_manager.process_rows(conn,cur, schemas, df)
 
     return
     pass

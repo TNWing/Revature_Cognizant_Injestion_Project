@@ -22,9 +22,9 @@ sources:
             PROPRIETARYNAMESUFFIX: str
             DEASCHEDULE : str
           rules:
-            -PRODUCTNDC: NOT NULL
-            -PROPRIETARYNAME: NOT NULL
-            -PRODUCTTYPENAME: NOT NULL
+            - PRODUCTNDC: NOT NULL
+            - PROPRIETARYNAME: NOT NULL
+            - PRODUCTTYPENAME: NOT NULL
       - schema:
           name : drug_class
           target_table: drug_classes
