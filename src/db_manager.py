@@ -381,7 +381,7 @@ def create_table(cur, table_name, fields, data_types, constraints,pk,outer):#con
         out=sql.SQL(outer)
     )
     #print(outer)
-    print(query.as_string(cur))
+    #print(query.as_string(cur))
     try:
         cur.execute(query)
     except Exception as e:
@@ -437,7 +437,7 @@ def upsert_into_table(conn, cur, table_name, data, schema, primary_key, types):
             rej_cnt += 1
         else:
             print("failed to put in rejects")
-            print(e)
+            #print(e)
     finally:
         monitor_func()
     return

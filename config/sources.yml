@@ -79,7 +79,7 @@ sources:
             PRODUCTID: str
           rules:
             - PRODUCTID: REFERENCES drug_table(PRODUCTID)
-          outer: PARTITION BY LIST (NONPROPRIETARYNAME)
+          #outer: PARTITION BY LIST (NONPROPRIETARYNAME)
       - schema:
           name : drug_company
           target_table: drug_company
@@ -96,7 +96,7 @@ sources:
             - STARTMARKETINGDATE: NOT NULL
             - APPLICATIONNUMBER : NOT NULL
             - LABELERNAME: NOT NULL
-          outer: PARTITION BY RANGE (STARTMARKETINGDATE)
+          #outer: PARTITION BY RANGE (STARTMARKETINGDATE)
     data_types:
       PRODUCTID: str
       PRODUCTNDC : str
