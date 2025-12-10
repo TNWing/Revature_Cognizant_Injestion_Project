@@ -95,25 +95,8 @@ sources:
             - STARTMARKETINGDATE: NOT NULL
             - APPLICATIONNUMBER : NOT NULL
             - LABELERNAME: NOT NULL
-    data_types:
-      PRODUCTID: str
-      PRODUCTNDC : str
-      PRODUCTTYPENAME: str
-      PROPRIETARYNAME: str
-      PROPRIETARYNAMESUFFIX : str
-      NONPROPRIETARYNAME : str
-      DOSAGEFORMNAME: str
-      ROUTENAME : str[]
-      STARTMARKETINGDATE : date
-      ENDMARKETINGDATE : date
-      MARKETINGCATEGORYNAME: str
-      APPLICATIONNUMBER : str
-      LABELERNAME : str
-      SUBSTANCENAME : str[]
-      ACTIVE_NUMERATOR_STRENGTH : float[]
-      ACTIVE_INGRED_UNIT : str[]
-      PHARM_CLASSES : str[]
-      DEASCHEDULE : str
+    should_ignore_na: True
+    ignore_na: ['ENDMARKETINGDATE','DEASCHEDULE','PROPRIETARYNAMESUFFIX','PHARM_CLASSES']
   - name: drug_effects
     type: json
     path: data/medical_medicine_dataset.jsonl

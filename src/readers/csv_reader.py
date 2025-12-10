@@ -21,7 +21,16 @@ def read_csv(conn, cur, source):
     if Path(file_path).exists():
         df = pd.read_csv(file_path, na_values=[""],
                          dtype={"STARTMARKETINGDATE": "Int64", "ENDMARKETINGDATE": "Int64"})
-        db_manager.process_rows(conn,cur, schemas, df)
+        print(df.shape)
+        ignore_na=[]
+        clean_df=df
+        if ('should_ignore_na' in source):
+            print(source['should_ignore_na'])
+            if (source['should_ignore_na']):
+                if ('ignore_na' in source):
+                    ignore_na=source['ignore_na']
+            clean_df=df.dropna(subset=df.columns.difference(ignore_na))
+        db_manager.process_rows(conn,cur, schemas,clean_df)
 
     return
     pass
