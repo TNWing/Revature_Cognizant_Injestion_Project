@@ -22,5 +22,12 @@ def read_json(conn, cur, source):
             conn.commit()
     if Path(file_path).exists():
         df = pd.read_json(file_path, lines=file_path.endswith(".jsonl"))
-        db_manager.process_rows(conn, cur, schemas, df)
+        ignore_na=[]
+        clean_df=df
+        if ('should_ignore_na' in source):
+            if (source['should_ignore_na']):
+                if ('ignore_na' in source):
+                    ignore_na=source['ignore_na']
+            clean_df=df.dropna(subset=df.columns.difference(ignore_na))
+        db_manager.process_rows(conn, cur, schemas,clean_df)
     return
